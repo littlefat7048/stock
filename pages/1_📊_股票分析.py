@@ -57,12 +57,13 @@ from utils.charts import (
     create_eps_chart, create_revenue_chart
 )
 
-from utils.helpers import get_common_css
+from utils.helpers import get_common_css, get_top_nav_html
 
 st.set_page_config(page_title='台股個股深度分析', page_icon='📊', layout='wide')
 
-# ── 注入自訂繁體中文與手機響應式樣式 ─────────────────────
+# ── 注入自訂繁體中文與手機響應式樣式及頂部導覽列 ──────────
 st.markdown(get_common_css(), unsafe_allow_html=True)
+st.markdown(get_top_nav_html('stock'), unsafe_allow_html=True)
 
 # ── 股票代號或中文名稱輸入區 ──────────────────────────────
 if 'target_stock' in st.session_state and st.session_state['target_stock']:
@@ -71,16 +72,17 @@ if 'target_stock' in st.session_state and st.session_state['target_stock']:
 else:
     default_query = st.query_params.get('stock', '2330')
 
-col_input, col_btn = st.columns([3.8, 1.2])
+st.markdown("<div style='font-size:13px; font-weight:bold; color:#00D4AA; margin-bottom:2px;'>🔍 輸入台股代號或中文股名查詢：</div>", unsafe_allow_html=True)
+col_input, col_btn = st.columns([3.6, 1.4])
 with col_input:
     raw_input = st.text_input(
         "🔍 輸入台股代號或中文股名",
         value=default_query,
-        placeholder="例如：5484、慧友、2330、台積電、穎崴",
+        placeholder="點此輸入：例如 5484、慧友、2330、台積電、穎崴",
         label_visibility="collapsed"
     )
 with col_btn:
-    search_btn = st.button("🚀 分析", use_container_width=True)
+    search_btn = st.button("🚀 立即分析", use_container_width=True)
 
 # 熱門速選晶片（手機左右滑動，點擊直達）
 quick_samples = [('2330', '台積電'), ('5484', '慧友'), ('6515', '穎崴'), ('2317', '鴻海'), ('2454', '聯發科'), ('2382', '廣達')]

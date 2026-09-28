@@ -10,10 +10,11 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import utils.helpers
 importlib.reload(utils.helpers)
-from utils.helpers import load_concept_data, get_common_css
+from utils.helpers import load_concept_data, get_common_css, get_top_nav_html
 
 st.set_page_config(page_title='台股概念股分類', page_icon='🏷️', layout='wide')
 st.markdown(get_common_css(), unsafe_allow_html=True)
+st.markdown(get_top_nav_html('concept'), unsafe_allow_html=True)
 
 st.title("🏷️ 台股熱門概念股與題材細項分類")
 st.caption("仿照籌碼 K 線細分題材，涵蓋 AI 算力、CoWoS、機器人、矽光子、散熱等 47 個細項。點擊任一股票即可開啟完整分析！")

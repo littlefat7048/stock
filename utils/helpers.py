@@ -366,5 +366,56 @@ def get_common_css() -> str:
             margin-bottom: 0.2rem !important;
         }
     }
+
+    /* ── 頂部 4 大功能快速導覽列（手機/電腦皆固定單行並排） ── */
+    .top-nav-bar {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px;
+        margin-bottom: 8px;
+        background: #141923;
+        padding: 5px;
+        border-radius: 10px;
+        border: 1px solid #263044;
+    }
+    .top-nav-item {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px 2px;
+        border-radius: 7px;
+        font-size: 13px;
+        font-weight: bold;
+        color: #94A3B8 !important;
+        text-decoration: none !important;
+        text-align: center;
+        transition: all 0.15s ease;
+        white-space: nowrap;
+    }
+    .top-nav-item:hover {
+        background: #1C2536;
+        color: #FAFAFA !important;
+    }
+    .top-nav-item.active {
+        background: #00D4AA22;
+        border: 1px solid #00D4AA;
+        color: #00D4AA !important;
+    }
     </style>
     """
+
+
+def get_top_nav_html(active: str = 'home') -> str:
+    """產生手機與電腦皆可一鍵切換的頂部 4 格導覽列 HTML"""
+    items = [
+        ('home', '📊 盤後日報'),
+        ('stock', '🔍 股票分析'),
+        ('concept', '🏷️ 概念股'),
+        ('watch', '⭐ 自選股'),
+    ]
+    links = []
+    for key, label in items:
+        cls = "top-nav-item active" if key == active else "top-nav-item"
+        links.append(f'<a href="/?nav={key}" target="_self" class="{cls}">{label}</a>')
+    return f'<div class="top-nav-bar">{"".join(links)}</div>'
+

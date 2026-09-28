@@ -12,12 +12,22 @@ sys.path.insert(0, os.path.dirname(__file__))
 # ── 1. Page Config 必須為第一個 Streamlit 指令 ────────────
 st.set_page_config(page_title='台股每日分析', page_icon='📊', layout='wide')
 
-# ── 2. 攔截跳轉參數（點擊日報內的股票時直接切換至個股分析）───
+# ── 2. 攔截跳轉參數（點擊日報內的股票或頂部導覽列時切換頁面）───
 if 'stock' in st.query_params and st.query_params['stock']:
     stock_code = str(st.query_params['stock']).strip()
     st.session_state['target_stock'] = stock_code
     del st.query_params['stock']
     st.switch_page("pages/1_📊_股票分析.py")
+
+if 'nav' in st.query_params and st.query_params['nav']:
+    nav_target = str(st.query_params['nav']).strip()
+    del st.query_params['nav']
+    if nav_target == 'stock':
+        st.switch_page("pages/1_📊_股票分析.py")
+    elif nav_target == 'concept':
+        st.switch_page("pages/2_🏷️_概念股.py")
+    elif nav_target == 'watch':
+        st.switch_page("pages/3_⭐_自選股.py")
 
 # ── 3. 注入父視窗跨 iframe 通訊監聽器 ─────────────────────
 components.html("""
@@ -54,10 +64,11 @@ from modules.daily_report import (
     parse_stock_codes, get_available_dates
 )
 from modules.data_fetcher import get_twse_institutional_summary
-from utils.helpers import get_common_css
+from utils.helpers import get_common_css, get_top_nav_html
 
-# ── 注入自訂響應式 CSS ────────────────────────────────────
+# ── 注入自訂響應式 CSS 與頂部導覽列 ──────────────────────
 st.markdown(get_common_css(), unsafe_allow_html=True)
+st.markdown(get_top_nav_html('home'), unsafe_allow_html=True)
 
 # ── 側邊欄：日期選擇 ──────────────────────────────────────
 with st.sidebar:
@@ -117,9 +128,26 @@ with st.sidebar:
     st.divider()
     st.caption("💡 每日 19:00 自動抓取最新報告\n\n點擊報告中任何股票代碼即可跳至「個股分析」！")
 
-# ── 主頁面標題 ────────────────────────────────────────────
+# ── 主頁面標題與快速查股框 ────────────────────────────────
 st.title("📊 台股每日盤後分析報告")
 st.caption(f"資料來源：7388chichi.pages.dev | 選取日期：{selected_date[:4]}/{selected_date[4:6]}/{selected_date[6:]}")
+
+st.markdown("<div style='font-size:13px; font-weight:bold; color:#00D4AA; margin-top:4px; margin-bottom:2px;'>🔍 直接輸入台股代號或中文股名查詢：</div>", unsafe_allow_html=True)
+hc1, hc2 = st.columns([3.6, 1.4])
+with hc1:
+    home_stock_q = st.text_input(
+        "輸入台股代號或中文股名",
+        placeholder="點此輸入：例如 5484、慧友、2330、台積電...",
+        key="home_direct_search",
+        label_visibility="collapsed"
+    )
+with hc2:
+    home_search_btn = st.button("🚀 立即分析", key="home_search_btn", use_container_width=True)
+
+if (home_search_btn or home_stock_q) and home_stock_q.strip():
+    st.session_state['target_stock'] = home_stock_q.strip()
+    st.switch_page("pages/1_📊_股票分析.py")
+
 st.divider()
 
 # ── 載入報告 ──────────────────────────────────────────────

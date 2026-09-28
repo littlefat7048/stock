@@ -13,11 +13,12 @@ importlib.reload(utils.helpers)
 from utils.helpers import (
     load_watchlist, save_watchlist,
     resolve_stock_query, get_tw_stock_chinese_info,
-    get_concept_tags_for_stock, load_concept_data, get_common_css
+    get_concept_tags_for_stock, load_concept_data, get_common_css, get_top_nav_html
 )
 
 st.set_page_config(page_title='自選股清單', page_icon='⭐', layout='wide')
 st.markdown(get_common_css(), unsafe_allow_html=True)
+st.markdown(get_top_nav_html('watch'), unsafe_allow_html=True)
 
 st.title("⭐ 我的台股自選股清單")
 st.caption("輸入股票代號（如 5484）或中文名稱（如 慧友、台積電）加入追蹤，並記錄買進理由或目標價。")

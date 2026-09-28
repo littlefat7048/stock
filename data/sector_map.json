@@ -1,0 +1,196 @@
+{
+  "sectors": {
+    "XLK": {
+      "name": "科技",
+      "name_en": "Technology",
+      "description": "軟體、硬體、半導體、雲端服務",
+      "tw_industry": ["半導體", "電子零組件", "電腦及周邊設備"],
+      "tw_stocks": [
+        {"code": "2330", "name": "台積電", "desc": "全球最大晶圓代工"},
+        {"code": "2454", "name": "聯發科", "desc": "IC設計龍頭"},
+        {"code": "2317", "name": "鴻海", "desc": "全球最大EMS"},
+        {"code": "2382", "name": "廣達", "desc": "筆電/伺服器代工"},
+        {"code": "2308", "name": "台達電", "desc": "電源管理/工業自動化"},
+        {"code": "3711", "name": "日月光投控", "desc": "半導體封測龍頭"},
+        {"code": "2303", "name": "聯電", "desc": "晶圓代工"},
+        {"code": "6770", "name": "力積電", "desc": "晶圓代工"}
+      ],
+      "tw_etf": [{"code": "0050", "name": "元大台灣50"}, {"code": "0056", "name": "元大高股息"}]
+    },
+    "XLF": {
+      "name": "金融",
+      "name_en": "Financials",
+      "description": "銀行、保險、證券、資產管理",
+      "tw_industry": ["金融保險"],
+      "tw_stocks": [
+        {"code": "2882", "name": "國泰金", "desc": "壽險龍頭"},
+        {"code": "2881", "name": "富邦金", "desc": "綜合金融"},
+        {"code": "2886", "name": "兆豐金", "desc": "公股銀行"},
+        {"code": "2884", "name": "玉山金", "desc": "民營銀行"},
+        {"code": "2891", "name": "中信金", "desc": "民營銀行"},
+        {"code": "2885", "name": "元大金", "desc": "證券龍頭"}
+      ],
+      "tw_etf": [{"code": "0055", "name": "元大MSCI金融"}]
+    },
+    "XLV": {
+      "name": "醫療保健",
+      "name_en": "Healthcare",
+      "description": "製藥、生技、醫療器材、醫院",
+      "tw_industry": ["生技醫療"],
+      "tw_stocks": [
+        {"code": "4716", "name": "大樹", "desc": "藥局連鎖"},
+        {"code": "1789", "name": "神隆", "desc": "原料藥"},
+        {"code": "4743", "name": "合一", "desc": "新藥開發"},
+        {"code": "6547", "name": "高端疫苗", "desc": "疫苗開發"},
+        {"code": "4770", "name": "上品", "desc": "藥品流通"},
+        {"code": "4148", "name": "全宇生技", "desc": "生技農業"}
+      ],
+      "tw_etf": [{"code": "00922", "name": "國泰台灣生技"}]
+    },
+    "XLY": {
+      "name": "非必需消費",
+      "name_en": "Consumer Discretionary",
+      "description": "汽車、零售、餐飲、娛樂、電商",
+      "tw_industry": ["汽車工業", "食品工業", "百貨零售"],
+      "tw_stocks": [
+        {"code": "2207", "name": "和泰車", "desc": "Toyota台灣代理"},
+        {"code": "2915", "name": "潤泰全", "desc": "百貨零售"},
+        {"code": "2912", "name": "統一超", "desc": "7-ELEVEN母公司"},
+        {"code": "5904", "name": "寶雅", "desc": "美妝零售"},
+        {"code": "2723", "name": "美食-KY", "desc": "85度C母公司"}
+      ],
+      "tw_etf": []
+    },
+    "XLI": {
+      "name": "工業",
+      "name_en": "Industrials",
+      "description": "航空、國防、機械、建築、運輸",
+      "tw_industry": ["航運業", "機電工業"],
+      "tw_stocks": [
+        {"code": "2603", "name": "長榮", "desc": "貨櫃航運"},
+        {"code": "2609", "name": "陽明", "desc": "貨櫃航運"},
+        {"code": "2615", "name": "萬海", "desc": "貨櫃航運"},
+        {"code": "2618", "name": "長榮航", "desc": "客貨航空"},
+        {"code": "2610", "name": "華航", "desc": "客貨航空"}
+      ],
+      "tw_etf": []
+    },
+    "XLE": {
+      "name": "能源",
+      "name_en": "Energy",
+      "description": "石油、天然氣、再生能源",
+      "tw_industry": ["石油化工", "再生能源"],
+      "tw_stocks": [
+        {"code": "1303", "name": "南亞", "desc": "塑化龍頭"},
+        {"code": "1301", "name": "台塑", "desc": "塑化龍頭"},
+        {"code": "6409", "name": "旭隼", "desc": "太陽能"},
+        {"code": "3576", "name": "聯合再生", "desc": "太陽能電池"},
+        {"code": "3005", "name": "神基", "desc": "工業電腦"}
+      ],
+      "tw_etf": [{"code": "00888", "name": "永豐台灣ESG"}]
+    },
+    "XLB": {
+      "name": "原材料",
+      "name_en": "Materials",
+      "description": "鋼鐵、化工、礦業、紙業",
+      "tw_industry": ["鋼鐵工業", "化學工業"],
+      "tw_stocks": [
+        {"code": "2002", "name": "中鋼", "desc": "鋼鐵龍頭"},
+        {"code": "2006", "name": "東和鋼鐵", "desc": "電弧爐鋼鐵"},
+        {"code": "1326", "name": "台化", "desc": "化纖龍頭"},
+        {"code": "1305", "name": "華夏", "desc": "聚酯纖維"}
+      ],
+      "tw_etf": []
+    },
+    "XLRE": {
+      "name": "不動產",
+      "name_en": "Real Estate",
+      "description": "REIT、商業地產、住宅開發",
+      "tw_industry": ["建材營造"],
+      "tw_stocks": [
+        {"code": "2882", "name": "國泰金", "desc": "不動產投資"},
+        {"code": "2501", "name": "國建", "desc": "建設公司"},
+        {"code": "5522", "name": "遠雄", "desc": "建設/自貿區"},
+        {"code": "01002T", "name": "富邦基礎建設", "desc": "台灣首檔REITs"}
+      ],
+      "tw_etf": [{"code": "00712", "name": "復華富時不動產"}]
+    },
+    "XLP": {
+      "name": "必需消費",
+      "name_en": "Consumer Staples",
+      "description": "食品、飲料、菸草、日用品",
+      "tw_industry": ["食品工業"],
+      "tw_stocks": [
+        {"code": "1216", "name": "統一", "desc": "食品龍頭"},
+        {"code": "2912", "name": "統一超", "desc": "便利商店"},
+        {"code": "1210", "name": "大成", "desc": "飼料/肉品"},
+        {"code": "1215", "name": "卜蜂", "desc": "肉品加工"},
+        {"code": "2913", "name": "農林", "desc": "茶葉農業"}
+      ],
+      "tw_etf": []
+    },
+    "XLU": {
+      "name": "公用事業",
+      "name_en": "Utilities",
+      "description": "電力、天然氣、水務",
+      "tw_industry": ["電力供應"],
+      "tw_stocks": [
+        {"code": "9901", "name": "台灣電力", "desc": "國營電力"},
+        {"code": "1519", "name": "華城", "desc": "電力設備"},
+        {"code": "1504", "name": "東元", "desc": "電機/家電"}
+      ],
+      "tw_etf": []
+    },
+    "XLC": {
+      "name": "通訊服務",
+      "name_en": "Communication Services",
+      "description": "電信、媒體、網路、社群媒體",
+      "tw_industry": ["通信網路業"],
+      "tw_stocks": [
+        {"code": "2412", "name": "中華電", "desc": "電信龍頭"},
+        {"code": "4904", "name": "遠傳", "desc": "電信三雄"},
+        {"code": "3045", "name": "台灣大", "desc": "電信三雄"},
+        {"code": "6515", "name": "穎崴", "desc": "連接器/數位媒體"}
+      ],
+      "tw_etf": [{"code": "00861", "name": "元大全球通訊"}]
+    },
+    "QQQ": {
+      "name": "那斯達克100",
+      "name_en": "Nasdaq 100",
+      "description": "那斯達克前100大科技股",
+      "tw_industry": ["半導體", "電子零組件"],
+      "tw_stocks": [
+        {"code": "2330", "name": "台積電", "desc": "NVIDIA/Apple主要供應商"},
+        {"code": "2454", "name": "聯發科", "desc": "高通競爭對手"},
+        {"code": "2382", "name": "廣達", "desc": "AI伺服器代工"},
+        {"code": "6669", "name": "緯穎", "desc": "超大規模資料中心"}
+      ],
+      "tw_etf": [{"code": "00662", "name": "富邦NASDAQ"}]
+    },
+    "SOXX": {
+      "name": "半導體",
+      "name_en": "Semiconductors",
+      "description": "費城半導體指數，全球半導體龍頭",
+      "tw_industry": ["半導體"],
+      "tw_stocks": [
+        {"code": "2330", "name": "台積電", "desc": "晶圓代工龍頭"},
+        {"code": "2303", "name": "聯電", "desc": "晶圓代工"},
+        {"code": "2454", "name": "聯發科", "desc": "IC設計"},
+        {"code": "3711", "name": "日月光投控", "desc": "封測龍頭"},
+        {"code": "3034", "name": "聯詠", "desc": "IC設計"},
+        {"code": "6415", "name": "矽力-KY", "desc": "電源IC"}
+      ],
+      "tw_etf": [{"code": "00851", "name": "台新MSCI台灣"}]
+    }
+  },
+  "tw_industry_map": {
+    "半導體": ["2330", "2303", "2454", "3711", "6415", "3034", "2344"],
+    "電子零組件": ["2317", "2382", "2308", "6669", "3231", "2357"],
+    "金融保險": ["2882", "2881", "2886", "2884", "2891", "2885"],
+    "生技醫療": ["4716", "1789", "4743", "6547", "4148"],
+    "鋼鐵工業": ["2002", "2006", "2007", "2008"],
+    "食品工業": ["1216", "1210", "1215", "2912"],
+    "航運業": ["2603", "2609", "2615", "2618", "2610"],
+    "通信網路業": ["2412", "4904", "3045"]
+  }
+}

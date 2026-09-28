@@ -1,0 +1,16 @@
+# 排除私密金鑰設定檔（請勿上傳至 GitHub）
+.streamlit/secrets.toml
+
+# Python 暫存檔
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+venv/
+.venv/
+
+# 排除個股短暫快取，但保留盤後報告快取
+data/cache/stock_info_*.json
+data/cache/financials_*.json
+data/cache/chip_*.json
+data/cache/ai_analysis_*.json

@@ -1,0 +1,289 @@
+"""
+台股每日盤後分析報告 — 首頁
+每日 19:00 自動抓取報告，股票名稱點擊後立即跳轉至個股分析頁
+"""
+import streamlit as st
+import streamlit.components.v1 as components
+from datetime import datetime, timedelta
+import sys, os, re
+
+sys.path.insert(0, os.path.dirname(__file__))
+
+# ── 1. Page Config 必須為第一個 Streamlit 指令 ────────────
+st.set_page_config(page_title='台股每日分析', page_icon='📊', layout='wide')
+
+# ── 2. 攔截跳轉參數（點擊日報內的股票時直接切換至個股分析）───
+if 'stock' in st.query_params and st.query_params['stock']:
+    stock_code = str(st.query_params['stock']).strip()
+    st.session_state['target_stock'] = stock_code
+    del st.query_params['stock']
+    st.switch_page("pages/1_📊_股票分析.py")
+
+# ── 3. 注入父視窗跨 iframe 通訊監聽器 ─────────────────────
+components.html("""
+<script>
+(function() {
+    try {
+        var p = window.parent || window.top;
+        if (p && !p._stockBridgeReady) {
+            p._stockBridgeReady = true;
+            p.addEventListener('message', function(e) {
+                if (e.data && (e.data.type === 'navigate_stock' || e.data.stock)) {
+                    var code = e.data.stock;
+                    if (code) {
+                        var origin = p.location.origin || '';
+                        p.location.href = origin + '/?stock=' + code;
+                    }
+                }
+            });
+        }
+    } catch(err) {
+        console.error('Stock bridge init error:', err);
+    }
+})();
+</script>
+""", height=0, width=0)
+
+from modules.daily_report import (
+    scrape_report, load_report_cache, save_report_cache,
+    parse_stock_codes, get_available_dates
+)
+from modules.data_fetcher import get_twse_institutional_summary
+
+# ── 自訂 CSS ──────────────────────────────────────────────
+st.markdown("""
+<style>
+.metric-card {
+    background: #1C2333; border-radius: 12px; padding: 16px;
+    border-left: 4px solid #00D4AA; margin-bottom: 8px;
+}
+.up-text { color: #e53935; font-weight: bold; }
+.down-text { color: #43a047; font-weight: bold; }
+.badge {
+    display:inline-block; padding:2px 10px; border-radius:12px;
+    font-size:12px; font-weight:bold; margin:2px;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# ── 側邊欄：日期選擇 ──────────────────────────────────────
+with st.sidebar:
+    st.title("📅 報告日期")
+
+    available = get_available_dates()
+    # 產生最近 10 個工作日選項
+    date_options = []
+    d = datetime.now()
+    for _ in range(20):
+        if d.weekday() < 5:  # 非週末
+            date_options.append(d.strftime('%Y%m%d'))
+            if len(date_options) == 10:
+                break
+        d -= timedelta(days=1)
+
+    # 確保已快取的日期在選項內
+    for av in available:
+        if av not in date_options:
+            date_options.append(av)
+    date_options = sorted(date_options, reverse=True)
+
+    # 預設選最新有快取的日期
+    default_idx = 0
+    for i, opt in enumerate(date_options):
+        if opt in available:
+            default_idx = i
+            break
+
+    def label_date(ds):
+        try:
+            dt = datetime.strptime(ds, '%Y%m%d')
+            label = dt.strftime('%Y/%m/%d (%a)')
+        except Exception:
+            label = ds
+        if ds in available:
+            label += " ✅ 已快取"
+        return label
+
+    selected_date = st.selectbox(
+        "選擇日期",
+        date_options,
+        index=default_idx,
+        format_func=label_date
+    )
+
+    st.divider()
+    if st.button("🔄 立即重新抓取", use_container_width=True):
+        with st.spinner(f"正在抓取 {selected_date} 的完整報告..."):
+            result = scrape_report(selected_date)
+            if result['status'] == 'success':
+                st.success(f"✅ 抓取成功！包含 {len(result['stocks_found'])} 檔個股分析")
+                st.rerun()
+            else:
+                st.error("❌ 該日報告尚未發布或抓取失敗")
+
+    st.divider()
+    st.caption("💡 每日 19:00 自動抓取最新報告\n\n點擊報告中任何股票代碼即可跳至「個股分析」！")
+
+# ── 主頁面標題 ────────────────────────────────────────────
+st.title("📊 台股每日盤後分析報告")
+st.caption(f"資料來源：7388chichi.pages.dev | 選取日期：{selected_date[:4]}/{selected_date[4:6]}/{selected_date[6:]}")
+st.divider()
+
+# ── 載入報告 ──────────────────────────────────────────────
+cached = load_report_cache(selected_date)
+
+if cached and cached.get('html'):
+    report_html = cached['html']
+    stocks_in_report = cached.get('stocks', [])
+    st.success(f"✅ 已載入完整盤後報告 | 共收錄 {len(stocks_in_report)} 檔個股深度分析")
+else:
+    with st.spinner(f"⏳ 正在抓取 {selected_date} 盤後報告..."):
+        result = scrape_report(selected_date)
+
+    if result['status'] == 'success':
+        report_html = result['html']
+        stocks_in_report = result['stocks_found']
+        st.success(f"✅ 抓取成功！共收錄 {len(stocks_in_report)} 檔個股深度分析")
+    else:
+        report_html = None
+        stocks_in_report = []
+        st.warning(f"⚠️ 尚無 {selected_date} 的完整報告（可能尚未發布，或非交易日）")
+
+# ── 今日焦點股快速捷徑 ───────────────────────────────────
+if stocks_in_report:
+    st.markdown("##### 🚀 今日熱門焦點股（一鍵直達個股分析）：")
+    focus_stocks = stocks_in_report[:12]
+    cols = st.columns(len(focus_stocks))
+    for i, stock in enumerate(focus_stocks):
+        with cols[i]:
+            if st.button(
+                f"{stock['code']}\n{stock['name']}",
+                key=f"top_btn_{stock['code']}",
+                use_container_width=True
+            ):
+                st.session_state['target_stock'] = stock['code']
+                st.switch_page("pages/1_📊_股票分析.py")
+
+    with st.expander(f"🔍 展開查看全部收錄的 {len(stocks_in_report)} 檔個股清單（支援搜尋過濾）", expanded=False):
+        search_kw = st.text_input("輸入代碼或名稱搜尋", placeholder="例如：2330 或 穎崴", key="quick_filter")
+        filtered_stocks = stocks_in_report
+        if search_kw:
+            filtered_stocks = [s for s in stocks_in_report if search_kw in s['code'] or search_kw in s['name']]
+
+        cols_per_row = 6
+        display_stocks = filtered_stocks[:90]
+        rows = [display_stocks[i:i+cols_per_row] for i in range(0, len(display_stocks), cols_per_row)]
+
+        for row in rows:
+            r_cols = st.columns(cols_per_row)
+            for j, s in enumerate(row):
+                with r_cols[j]:
+                    if st.button(
+                        f"{s['code']} {s['name']}",
+                        key=f"quick_{s['code']}",
+                        use_container_width=True
+                    ):
+                        st.session_state['target_stock'] = s['code']
+                        st.switch_page("pages/1_📊_股票分析.py")
+
+        if len(filtered_stocks) > 90:
+            st.caption(f"（已顯示前 90 檔，其餘請使用上方搜尋過濾）")
+
+    st.divider()
+
+# ── 嵌入報告 HTML（帶跨層級點擊事件綁定）──────────────────
+if report_html:
+    def inject_stock_links(html):
+        """
+        將報告 HTML 中的股票名稱/代碼包裝為呼叫 handleStockClick(code) 的互動元素。
+        1. 個股卡片標題：<span style="font-weight:bold;font-size:15px">6515 穎崴</span>
+        2. 段落文字中的「股名（代碼）」
+        """
+        # 1. 替換個股卡片標題
+        card_pattern = r'<span style="font-weight:bold;font-size:15px">(\d{4})\s*([^<]+)</span>'
+        def replace_card(m):
+            code = m.group(1)
+            name = m.group(2).strip()
+            return (
+                f'<span onclick="handleStockClick(\'{code}\')" style="cursor:pointer; display:inline-block; '
+                f'background:#00D4AA20; border:2px solid #00D4AA; border-radius:8px; '
+                f'padding:3px 12px; margin-right:6px; font-weight:bold; font-size:15px; color:#00D4AA; '
+                f'box-shadow: 0 2px 5px rgba(0,212,170,0.2); transition: transform 0.1s;" '
+                f'onmouseover="this.style.background=\'#00D4AA40\'" onmouseout="this.style.background=\'#00D4AA20\'" '
+                f'title="點擊前往 {code} {name} 完整深度分析">📊 {code} {name} ↗</span>'
+            )
+        html = re.sub(card_pattern, replace_card, html)
+
+        # 2. 替換文字段落中的「股名（代號）」
+        text_pattern = r'([\u4e00-\u9fa5A-Za-z0-9\-]{2,8})[（\(](\d{4})([，,][^）\)]*)?[）\)]'
+        def replace_text(m):
+            name = m.group(1)
+            code = m.group(2)
+            extra = m.group(3) or ''
+            return (
+                f'<span onclick="handleStockClick(\'{code}\')" style="cursor:pointer; color:#00D4AA; '
+                f'font-weight:bold; text-decoration:underline; padding:1px 4px; border-radius:4px;" '
+                f'onmouseover="this.style.background=\'#00D4AA20\'" onmouseout="this.style.background=\'transparent\'" '
+                f'title="點擊查看 {code} 分析">{name}（{code}{extra}）</span>'
+            )
+        html = re.sub(text_pattern, replace_text, html)
+
+        # 3. 在 HTML 開頭注入通訊 JavaScript 函數
+        js_bridge = """
+<script>
+function handleStockClick(code) {
+    if (!code) return;
+    
+    // 1. 優先透過 postMessage 通知父視窗跳轉（同分頁無縫切換）
+    try {
+        var p = window.parent || window.top;
+        if (p) {
+            p.postMessage({type: 'navigate_stock', stock: code}, '*');
+        }
+    } catch(e) {}
+
+    // 2. 嘗試直接操作父視窗 URL
+    try {
+        var p = window.parent || window.top;
+        if (p && p.location) {
+            var origin = p.location.origin || '';
+            p.location.href = origin + '/?stock=' + code;
+            return;
+        }
+    } catch(e) {}
+
+    // 3. 兜底保障：開新分頁跳轉
+    try {
+        var base = '';
+        try { base = (window.parent && window.parent.location) ? window.parent.location.origin : ''; } catch(e) {}
+        if (!base) base = window.location.origin || '';
+        window.open(base + '/?stock=' + code, '_blank');
+    } catch(e) {}
+}
+</script>
+"""
+        return js_bridge + html
+
+    display_html = inject_stock_links(report_html)
+
+    st.subheader("📄 每日盤後報告全文")
+    st.caption("💡 提示：點擊報告中任何**綠色股票標籤 📊** 或**有底線的股票名稱**，即可立即跳轉至個股完整分析！")
+    components.html(display_html, height=12000, scrolling=True)
+
+else:
+    st.subheader("📊 今日大盤概況（官方備用資料）")
+    st.info("今日尚未有完整盤後報告，以下顯示台灣證交所官方即時資料")
+
+    with st.spinner("載入證交所資料..."):
+        inst_data = get_twse_institutional_summary()
+
+    if inst_data and inst_data.get('data'):
+        st.subheader("🏛 三大法人買賣超（上市）")
+        rows_data = inst_data.get('data', [])
+        if rows_data:
+            import pandas as pd
+            fields = inst_data.get('fields', [])
+            df = pd.DataFrame(rows_data, columns=fields) if fields else pd.DataFrame(rows_data)
+            st.dataframe(df, use_container_width=True)
+    else:
+        st.info("暫無即時資料。請確認每日 19:00 後報告已產生。")

@@ -20,8 +20,8 @@ def _apply_dark_layout(fig):
         template='plotly_dark',
         paper_bgcolor=BG_COLOR,
         plot_bgcolor=PLOT_BG_COLOR,
-        font=dict(size=12, color=FONT_COLOR),
-        margin=dict(l=40, r=40, t=45, b=35),
+        font=dict(size=11, color=FONT_COLOR),
+        margin=dict(l=15, r=15, t=32, b=20),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
     fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#2A324B')

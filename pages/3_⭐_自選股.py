@@ -13,24 +13,24 @@ importlib.reload(utils.helpers)
 from utils.helpers import (
     load_watchlist, save_watchlist,
     resolve_stock_query, get_tw_stock_chinese_info,
-    get_concept_tags_for_stock, load_concept_data
+    get_concept_tags_for_stock, load_concept_data, get_common_css
 )
 
 st.set_page_config(page_title='自選股清單', page_icon='⭐', layout='wide')
+st.markdown(get_common_css(), unsafe_allow_html=True)
 
 st.title("⭐ 我的台股自選股清單")
-st.caption("可輸入股票代號（如 5484）或中文名稱（如 慧友、台積電）加入追蹤，並記錄您的買進理由或目標價備註。")
+st.caption("輸入股票代號（如 5484）或中文名稱（如 慧友、台積電）加入追蹤，並記錄買進理由或目標價。")
 
 watchlist = load_watchlist()
 
-col1, col2, col3 = st.columns([1.8, 2.2, 1])
+col1, col2 = st.columns([1.5, 2.5])
 with col1:
-    new_input = st.text_input("➕ 新增股票（代號或中文股名）", placeholder="例如：5484 或 慧友")
+    new_input = st.text_input("➕ 股票代號或中文股名", placeholder="例如：5484 或 慧友")
 with col2:
     new_note = st.text_input("📝 投資備註（選填）", placeholder="例如：等待拉回 38 元支撐買進")
-with col3:
-    st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
-    if st.button("➕ 加入自選股", use_container_width=True):
+
+if st.button("➕ 加入自選股", use_container_width=True):
         if new_input:
             code = resolve_stock_query(new_input)
             cinfo = get_tw_stock_chinese_info(code)

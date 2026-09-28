@@ -49,22 +49,10 @@ from modules.daily_report import (
     parse_stock_codes, get_available_dates
 )
 from modules.data_fetcher import get_twse_institutional_summary
+from utils.helpers import get_common_css
 
-# ── 自訂 CSS ──────────────────────────────────────────────
-st.markdown("""
-<style>
-.metric-card {
-    background: #1C2333; border-radius: 12px; padding: 16px;
-    border-left: 4px solid #00D4AA; margin-bottom: 8px;
-}
-.up-text { color: #e53935; font-weight: bold; }
-.down-text { color: #43a047; font-weight: bold; }
-.badge {
-    display:inline-block; padding:2px 10px; border-radius:12px;
-    font-size:12px; font-weight:bold; margin:2px;
-}
-</style>
-""", unsafe_allow_html=True)
+# ── 注入自訂響應式 CSS ────────────────────────────────────
+st.markdown(get_common_css(), unsafe_allow_html=True)
 
 # ── 側邊欄：日期選擇 ──────────────────────────────────────
 with st.sidebar:
@@ -149,42 +137,32 @@ else:
         stocks_in_report = []
         st.warning(f"⚠️ 尚無 {selected_date} 的完整報告（可能尚未發布，或非交易日）")
 
-# ── 今日焦點股快速捷徑 ───────────────────────────────────
+# ── 今日焦點股快速捷徑（手機滑動晶片）───────────────────
 if stocks_in_report:
-    st.markdown("##### 🚀 今日熱門焦點股（一鍵直達個股分析）：")
-    focus_stocks = stocks_in_report[:12]
-    cols = st.columns(len(focus_stocks))
-    for i, stock in enumerate(focus_stocks):
-        with cols[i]:
-            if st.button(
-                f"{stock['code']}\n{stock['name']}",
-                key=f"top_btn_{stock['code']}",
-                use_container_width=True
-            ):
-                st.session_state['target_stock'] = stock['code']
-                st.switch_page("pages/1_📊_股票分析.py")
+    st.markdown("<div style='font-size:14px; font-weight:bold; margin-bottom:4px;'>🚀 今日熱門焦點股（左右滑動點擊直達）：</div>", unsafe_allow_html=True)
+    focus_stocks = stocks_in_report[:15]
+    chips_html = "".join([
+        f'<a href="/?stock={s["code"]}" target="_self" class="stock-chip-link">'
+        f'<span class="chip-code">{s["code"]}</span>{s["name"]}</a>'
+        for s in focus_stocks
+    ])
+    st.markdown(f'<div class="chips-scroll-bar">{chips_html}</div>', unsafe_allow_html=True)
 
-    with st.expander(f"🔍 展開查看全部收錄的 {len(stocks_in_report)} 檔個股清單（支援搜尋過濾）", expanded=False):
-        search_kw = st.text_input("輸入代碼或名稱搜尋", placeholder="例如：2330 或 穎崴", key="quick_filter")
+    with st.expander(f"🔍 展開查看全部收錄的 {len(stocks_in_report)} 檔個股清單（支援搜尋）", expanded=False):
+        search_kw = st.text_input("輸入代碼或名稱搜尋", placeholder="例如：2330 或 穎崴", key="quick_filter", label_visibility="collapsed")
         filtered_stocks = stocks_in_report
         if search_kw:
             filtered_stocks = [s for s in stocks_in_report if search_kw in s['code'] or search_kw in s['name']]
 
-        cols_per_row = 6
-        display_stocks = filtered_stocks[:90]
-        rows = [display_stocks[i:i+cols_per_row] for i in range(0, len(display_stocks), cols_per_row)]
-
-        for row in rows:
-            r_cols = st.columns(cols_per_row)
-            for j, s in enumerate(row):
-                with r_cols[j]:
-                    if st.button(
-                        f"{s['code']} {s['name']}",
-                        key=f"quick_{s['code']}",
-                        use_container_width=True
-                    ):
-                        st.session_state['target_stock'] = s['code']
-                        st.switch_page("pages/1_📊_股票分析.py")
+        chips_all = "".join([
+            f'<a href="/?stock={s["code"]}" target="_self" class="stock-chip-link" style="margin:2px 2px;">'
+            f'<span class="chip-code">{s["code"]}</span>{s["name"]}</a>'
+            for s in filtered_stocks[:90]
+        ])
+        st.markdown(
+            f'<div style="display:flex; flex-wrap:wrap; gap:4px; max-height:260px; overflow-y:auto; padding:6px 0;">{chips_all}</div>',
+            unsafe_allow_html=True
+        )
 
         if len(filtered_stocks) > 90:
             st.caption(f"（已顯示前 90 檔，其餘請使用上方搜尋過濾）")

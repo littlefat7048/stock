@@ -10,12 +10,13 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import utils.helpers
 importlib.reload(utils.helpers)
-from utils.helpers import load_concept_data
+from utils.helpers import load_concept_data, get_common_css
 
 st.set_page_config(page_title='台股概念股分類', page_icon='🏷️', layout='wide')
+st.markdown(get_common_css(), unsafe_allow_html=True)
 
 st.title("🏷️ 台股熱門概念股與題材細項分類")
-st.caption("仿照籌碼 K 線細分題材，涵蓋 AI 算力、CoWoS、機器人、矽光子、散熱、重電、軍工等 47 個細項分類。點擊任一股票即可開啟完整分析！")
+st.caption("仿照籌碼 K 線細分題材，涵蓋 AI 算力、CoWoS、機器人、矽光子、散熱等 47 個細項。點擊任一股票即可開啟完整分析！")
 
 concept_data = load_concept_data()
 categories = concept_data.get('概念分類', {})
@@ -23,12 +24,12 @@ categories = concept_data.get('概念分類', {})
 if not categories:
     st.warning("目前沒有概念股資料。")
 else:
-    col_cat, col_search = st.columns([2, 2])
+    col_cat, col_search = st.columns([1.5, 2.5])
     with col_cat:
         big_cat_list = ["全部領域"] + list(categories.keys())
         selected_big = st.selectbox("📂 選擇主產業領域", big_cat_list)
     with col_search:
-        kw = st.text_input("🔍 搜尋概念名稱、股票代號或中文股名", placeholder="例如：機器人、CoWoS、慧友、2330")
+        kw = st.text_input("🔍 搜尋概念名稱、股票代號或中文股名", placeholder="例如：機器人、CoWoS、慧友、2330", label_visibility="collapsed")
 
     st.divider()
 
@@ -64,17 +65,11 @@ else:
         for sub_name, cinfo in matched_subs.items():
             stocks = cinfo.get('stocks', [])
             desc = cinfo.get('desc', '')
-            with st.expander(f"🏷️ {sub_name}（共 {len(stocks)} 檔） — {desc}", expanded=bool(kw)):
-                cols = st.columns(5)
-                for idx, s in enumerate(stocks):
-                    scode = s.get('code', '')
-                    sname = s.get('name', '')
-                    srole = s.get('role', '')
-                    with cols[idx % 5]:
-                        if st.button(
-                            f"📊 {scode} {sname}\n[{srole}]",
-                            key=f"c_{big_cat}_{sub_name}_{scode}_{idx}",
-                            use_container_width=True
-                        ):
-                            st.session_state['target_stock'] = scode
-                            st.switch_page("pages/1_📊_股票分析.py")
+            with st.expander(f"🏷️ {sub_name}（{len(stocks)} 檔） — {desc}", expanded=bool(kw)):
+                chips_html = "".join([
+                    f'<a href="/?stock={s.get("code","")}" target="_self" class="stock-chip-link" style="margin:2px 2px;">'
+                    f'<span class="chip-code">{s.get("code","")}</span>{s.get("name","")}'
+                    f'<span style="color:#94A3B8; font-size:11px; margin-left:4px;">({s.get("role","")})</span></a>'
+                    for s in stocks
+                ])
+                st.markdown(f'<div style="display:flex; flex-wrap:wrap; gap:4px; padding:4px 0;">{chips_html}</div>', unsafe_allow_html=True)

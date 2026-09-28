@@ -57,23 +57,12 @@ from utils.charts import (
     create_eps_chart, create_revenue_chart
 )
 
+from utils.helpers import get_common_css
+
 st.set_page_config(page_title='台股個股深度分析', page_icon='📊', layout='wide')
 
-# ── 自訂繁體中文介面樣式 ──────────────────────────────────
-st.markdown("""
-<style>
-.rating-buy   { background: linear-gradient(135deg, #d32f2f, #e53935); color:white; padding:10px 24px; border-radius:12px; font-size:22px; font-weight:bold; display:inline-block; box-shadow: 0 4px 12px rgba(229,57,53,0.35); }
-.rating-watch { background: linear-gradient(135deg, #f57c00, #ff9800); color:white; padding:10px 24px; border-radius:12px; font-size:22px; font-weight:bold; display:inline-block; box-shadow: 0 4px 12px rgba(255,152,0,0.35); }
-.rating-sell  { background: linear-gradient(135deg, #2e7d32, #43a047); color:white; padding:10px 24px; border-radius:12px; font-size:22px; font-weight:bold; display:inline-block; box-shadow: 0 4px 12px rgba(67,160,71,0.35); }
-.market-badge { background:#00D4AA22; border:1px solid #00D4AA; color:#00D4AA; padding:3px 10px; border-radius:8px; font-size:13px; font-weight:bold; margin-left:8px; vertical-align:middle; }
-.sector-badge { background:#38BDF822; border:1px solid #38BDF8; color:#38BDF8; padding:3px 10px; border-radius:8px; font-size:13px; margin-left:6px; vertical-align:middle; }
-.concept-tag  { display:inline-block; background:#1C2333; border:1px solid #FFB300; color:#FFD54F; padding:3px 12px; border-radius:14px; font-size:12px; margin:3px 4px 3px 0; }
-.info-card    { background:#1C2333; border:1px solid #2A324B; border-radius:10px; padding:14px 16px; margin-bottom:10px; }
-.price-box    { background:#161C28; border-left:4px solid #00D4AA; border-radius:8px; padding:12px 16px; margin:4px 0; }
-.pro-box      { background:#1C2826; border-left:4px solid #e53935; border-radius:8px; padding:12px 16px; margin-bottom:8px; }
-.con-box      { background:#1E241E; border-left:4px solid #43a047; border-radius:8px; padding:12px 16px; margin-bottom:8px; }
-</style>
-""", unsafe_allow_html=True)
+# ── 注入自訂繁體中文與手機響應式樣式 ─────────────────────
+st.markdown(get_common_css(), unsafe_allow_html=True)
 
 # ── 股票代號或中文名稱輸入區 ──────────────────────────────
 if 'target_stock' in st.session_state and st.session_state['target_stock']:
@@ -82,25 +71,31 @@ if 'target_stock' in st.session_state and st.session_state['target_stock']:
 else:
     default_query = st.query_params.get('stock', '2330')
 
-col_input, col_btn, col_quick = st.columns([2.2, 0.8, 4])
+col_input, col_btn = st.columns([3.8, 1.2])
 with col_input:
     raw_input = st.text_input(
         "🔍 輸入台股代號或中文股名",
         value=default_query,
-        placeholder="例如：5484、慧友、2330、台積電、穎崴"
+        placeholder="例如：5484、慧友、2330、台積電、穎崴",
+        label_visibility="collapsed"
     )
 with col_btn:
-    st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
-    search_btn = st.button("🚀 立即分析", use_container_width=True)
-with col_quick:
-    st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
-    q_cols = st.columns(6)
-    quick_samples = [('2330', '台積電'), ('5484', '慧友'), ('6515', '穎崴'), ('2317', '鴻海'), ('2454', '聯發科'), ('2382', '廣達')]
-    for idx, (qcode, qname) in enumerate(quick_samples):
-        if q_cols[idx].button(f"{qname}", key=f"sample_{qcode}", use_container_width=True):
-            raw_input = qcode
-            st.query_params['stock'] = qcode
-            st.rerun()
+    search_btn = st.button("🚀 分析", use_container_width=True)
+
+# 熱門速選晶片（手機左右滑動，點擊直達）
+quick_samples = [('2330', '台積電'), ('5484', '慧友'), ('6515', '穎崴'), ('2317', '鴻海'), ('2454', '聯發科'), ('2382', '廣達')]
+sample_chips = "".join([
+    f'<a href="/?stock={qcode}" target="_self" class="stock-chip-link">'
+    f'<span class="chip-code">{qcode}</span>{qname}</a>'
+    for qcode, qname in quick_samples
+])
+st.markdown(
+    f'<div style="display:flex; align-items:center; margin-bottom:6px;">'
+    f'<span style="color:#94A3B8; font-size:12px; margin-right:6px; flex-shrink:0;">熱門：</span>'
+    f'<div class="chips-scroll-bar" style="margin:0; padding:2px 0;">{sample_chips}</div>'
+    f'</div>',
+    unsafe_allow_html=True
+)
 
 if search_btn or raw_input:
     # 將中文名稱或代號統一轉為標準台股代號
@@ -145,45 +140,43 @@ if search_btn or raw_input:
     # ══════════════════════════════════════════════════════════
     # 1. 頂部標題列：中文名稱 + 市場別 + 產業別 + 即時股價
     # ══════════════════════════════════════════════════════════
-    col_title, col_watch = st.columns([5, 1])
+    col_title, col_watch = st.columns([3.6, 1.4])
     with col_title:
-        st.markdown(
-            f"<h1 style='margin-bottom:4px;'>🇹🇼 {stock_name} <span style='color:#94A3B8;font-size:26px;'>({stock_code})</span>"
-            f"<span class='market-badge'>{market_str}</span>"
-            f"<span class='sector-badge'>{sector_str}</span></h1>",
-            unsafe_allow_html=True
-        )
         price_color = color_for_change(price_change)
         arrow = "▲" if price_change > 0 else "▼" if price_change < 0 else "➖"
         st.markdown(
-            f"<div style='margin-bottom:8px;'>"
-            f"<span style='font-size:32px;font-weight:bold;color:{price_color}'>NT$ {latest_close:,.2f}</span>"
-            f"<span style='font-size:18px;font-weight:bold;color:{price_color};margin-left:14px'>"
-            f"{arrow} {abs(price_change):,.2f} ({pct_change:+.2f}%)</span>"
-            f"<span style='color:#888;font-size:13px;margin-left:16px'>資料基準日：{latest_date_str}</span>"
+            f"<div style='margin-bottom:2px; display:flex; align-items:center; flex-wrap:wrap; gap:6px;'>"
+            f"<span style='font-size:22px; font-weight:bold; color:#FAFAFA;'>🇹🇼 {stock_name}</span>"
+            f"<span style='color:#94A3B8; font-size:18px; font-weight:bold;'>({stock_code})</span>"
+            f"<span class='market-badge'>{market_str}</span>"
+            f"<span class='sector-badge'>{sector_str}</span>"
+            f"</div>"
+            f"<div style='margin-bottom:4px; display:flex; align-items:baseline; flex-wrap:wrap; gap:8px;'>"
+            f"<span style='font-size:26px; font-weight:bold; color:{price_color}'>NT$ {latest_close:,.2f}</span>"
+            f"<span style='font-size:16px; font-weight:bold; color:{price_color}'>{arrow} {abs(price_change):,.2f} ({pct_change:+.2f}%)</span>"
+            f"<span style='color:#888; font-size:11px;'>基準：{latest_date_str}</span>"
             f"</div>",
             unsafe_allow_html=True
         )
 
-        # 概念股標籤與同業標籤
         stock_concepts = get_concept_tags_for_stock(stock_code, concepts)
         if stock_concepts:
             tags_html = "".join([f"<span class='concept-tag'>🏷️ {t}</span>" for t in stock_concepts])
-            st.markdown(f"<div>所屬熱門概念：{tags_html}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='margin-bottom:2px;'>{tags_html}</div>", unsafe_allow_html=True)
 
     with col_watch:
         watchlist = load_watchlist()
         in_watch = any(s.get('code') == stock_code for s in watchlist)
-        btn_label = "⭐ 已在自選" if in_watch else "☆ 加入自選股"
+        btn_label = "⭐ 已在自選" if in_watch else "☆ 加入自選"
         if st.button(btn_label, use_container_width=True):
             if not in_watch:
                 watchlist.append({'code': stock_code, 'name': stock_name, 'note': ''})
                 save_watchlist(watchlist)
-                st.toast(f"✅ 已將 {stock_name} ({stock_code}) 加入自選股！")
+                st.toast(f"✅ 已將 {stock_name} 加入自選股！")
             else:
                 watchlist = [s for s in watchlist if s.get('code') != stock_code]
                 save_watchlist(watchlist)
-                st.toast(f"已將 {stock_name} ({stock_code}) 從自選股移除")
+                st.toast(f"已將 {stock_name} 從自選股移除")
             st.rerun()
 
     st.divider()
@@ -191,80 +184,74 @@ if search_btn or raw_input:
     # ══════════════════════════════════════════════════════════
     # 2. 最前方：綜合評價（買進/賣出/等待）、建議價位、優缺點速覽
     # ══════════════════════════════════════════════════════════
-    st.subheader("🎯 綜合評價與操作價位建議")
+    st.subheader("🎯 綜合評價與操作建議")
 
-    col_eval, col_prices = st.columns([1.4, 2.6])
+    btype = diagnosis['badge_type']
+    css_cls = 'rating-buy' if btype == 'buy' else ('rating-watch' if btype == 'watch' else 'rating-sell')
+
+    col_eval, col_prices = st.columns([1.2, 2.8])
     with col_eval:
-        btype = diagnosis['badge_type']
-        css_cls = 'rating-buy' if btype == 'buy' else ('rating-watch' if btype == 'watch' else 'rating-sell')
         st.markdown(
-            f"<div class='info-card' style='text-align:center; padding:20px 12px;'>"
-            f"<div style='color:#94A3B8;font-size:14px;margin-bottom:8px;'>目前系統綜合評價</div>"
+            f"<div class='info-card' style='text-align:center; padding:12px 10px; margin-bottom:6px;'>"
+            f"<div style='color:#94A3B8;font-size:12px;margin-bottom:4px;'>目前綜合評價</div>"
             f"<div class='{css_cls}'>{diagnosis['action']}</div>"
-            f"<div style='margin-top:14px;font-size:15px;'>"
-            f"綜合總分：<b style='color:#00D4AA;font-size:20px;'>{diagnosis['total_score']}</b> / 100"
+            f"<div style='margin-top:10px;font-size:14px;'>"
+            f"評分：<b style='color:#00D4AA;font-size:18px;'>{diagnosis['total_score']}</b> / 100"
             f"</div>"
-            f"<div style='color:#94A3B8;font-size:12px;margin-top:6px;'>"
-            f"技術面 {diagnosis['tech_score']}分 ｜ 籌碼面 {diagnosis['chip_score']}分 ｜ 基本面 {diagnosis['fund_score']}分"
+            f"<div style='color:#94A3B8;font-size:11px;margin-top:4px;'>"
+            f"技術 {diagnosis['tech_score']}分 ｜ 籌碼 {diagnosis['chip_score']}分 ｜ 基本 {diagnosis['fund_score']}分"
             f"</div>"
             f"</div>",
             unsafe_allow_html=True
         )
 
     with col_prices:
-        p1, p2, p3 = st.columns(3)
-        with p1:
-            st.markdown(
-                f"<div class='price-box'>"
-                f"<div style='color:#94A3B8;font-size:13px;'>💰 建議買進區間（支撐區）</div>"
-                f"<div style='color:#00D4AA;font-size:20px;font-weight:bold;margin-top:4px;'>{diagnosis['buy_zone']}</div>"
-                f"<div style='color:#888;font-size:12px;margin-top:2px;'>拉回靠近月線/支撐分批佈局</div>"
-                f"</div>",
-                unsafe_allow_html=True
-            )
-        with p2:
-            st.markdown(
-                f"<div class='price-box' style='border-left-color:#e53935;'>"
-                f"<div style='color:#94A3B8;font-size:13px;'>🚀 短波段目標價（壓力區）</div>"
-                f"<div style='color:#e53935;font-size:20px;font-weight:bold;margin-top:4px;'>{diagnosis['target_price']}</div>"
-                f"<div style='color:#888;font-size:12px;margin-top:2px;'>前波高點壓力：{diagnosis['resistance']:,.1f} 元</div>"
-                f"</div>",
-                unsafe_allow_html=True
-            )
-        with p3:
-            st.markdown(
-                f"<div class='price-box' style='border-left-color:#43a047;'>"
-                f"<div style='color:#94A3B8;font-size:13px;'>🛑 建議停損價（風險防守）</div>"
-                f"<div style='color:#43a047;font-size:20px;font-weight:bold;margin-top:4px;'>{diagnosis['stop_loss']}</div>"
-                f"<div style='color:#888;font-size:12px;margin-top:2px;'>關鍵防守支撐：{diagnosis['support']:,.1f} 元</div>"
-                f"</div>",
-                unsafe_allow_html=True
-            )
+        # 手機並排 3 欄關鍵價位區
+        st.markdown(
+            f"<div style='display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; margin-bottom:6px;'>"
+            f"<div class='price-box' style='padding:8px 6px; text-align:center;'>"
+            f"<div style='color:#94A3B8;font-size:11px;'>💰 建議買進</div>"
+            f"<div style='color:#00D4AA;font-size:15px;font-weight:bold;margin-top:2px;'>{diagnosis['buy_zone']}</div>"
+            f"<div style='color:#888;font-size:10px;margin-top:2px;'>支撐：{diagnosis['support']:,.1f}</div>"
+            f"</div>"
+            f"<div class='price-box' style='border-left-color:#e53935; padding:8px 6px; text-align:center;'>"
+            f"<div style='color:#94A3B8;font-size:11px;'>🚀 目標價</div>"
+            f"<div style='color:#e53935;font-size:15px;font-weight:bold;margin-top:2px;'>{diagnosis['target_price']}</div>"
+            f"<div style='color:#888;font-size:10px;margin-top:2px;'>壓力：{diagnosis['resistance']:,.1f}</div>"
+            f"</div>"
+            f"<div class='price-box' style='border-left-color:#43a047; padding:8px 6px; text-align:center;'>"
+            f"<div style='color:#94A3B8;font-size:11px;'>🛑 停損價</div>"
+            f"<div style='color:#43a047;font-size:15px;font-weight:bold;margin-top:2px;'>{diagnosis['stop_loss']}</div>"
+            f"<div style='color:#888;font-size:10px;margin-top:2px;'>防守線</div>"
+            f"</div>"
+            f"</div>",
+            unsafe_allow_html=True
+        )
 
         st.markdown(
-            f"<div class='info-card' style='margin-top:8px;padding:12px 16px;'>"
-            f"💡 <b>操作建議摘要：</b>{diagnosis['advice']}"
+            f"<div class='info-card' style='padding:8px 12px; margin-bottom:6px; font-size:13px;'>"
+            f"💡 <b>操作建議：</b>{diagnosis['advice']}"
             f"</div>",
             unsafe_allow_html=True
         )
 
     # 優缺點雙欄速覽
+    pros_items = "".join([f"<li style='margin:3px 0;'>{s}</li>" for s in diagnosis['strengths']])
+    cons_items = "".join([f"<li style='margin:3px 0;'>{r}</li>" for r in diagnosis['risks']])
     col_pros, col_cons = st.columns(2)
     with col_pros:
-        pros_items = "".join([f"<li style='margin:5px 0;'>{s}</li>" for s in diagnosis['strengths']])
         st.markdown(
             f"<div class='pro-box'>"
-            f"<div style='color:#FF8A80;font-weight:bold;font-size:15px;margin-bottom:6px;'>👍 多方優勢與亮點（利多因子）</div>"
-            f"<ul style='margin:0;padding-left:20px;font-size:14px;'>{pros_items}</ul>"
+            f"<div style='color:#FF8A80;font-weight:bold;font-size:13px;margin-bottom:4px;'>👍 多方優勢與亮點</div>"
+            f"<ul style='margin:0;padding-left:18px;font-size:13px;'>{pros_items}</ul>"
             f"</div>",
             unsafe_allow_html=True
         )
     with col_cons:
-        cons_items = "".join([f"<li style='margin:5px 0;'>{r}</li>" for r in diagnosis['risks']])
         st.markdown(
             f"<div class='con-box'>"
-            f"<div style='color:#81C784;font-weight:bold;font-size:15px;margin-bottom:6px;'>⚠️ 潛在風險與缺點（注意事項）</div>"
-            f"<ul style='margin:0;padding-left:20px;font-size:14px;'>{cons_items}</ul>"
+            f"<div style='color:#81C784;font-weight:bold;font-size:13px;margin-bottom:4px;'>⚠️ 潛在風險與注意事項</div>"
+            f"<ul style='margin:0;padding-left:18px;font-size:13px;'>{cons_items}</ul>"
             f"</div>",
             unsafe_allow_html=True
         )

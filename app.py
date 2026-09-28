@@ -19,6 +19,11 @@ if 'stock' in st.query_params and st.query_params['stock']:
     del st.query_params['stock']
     st.switch_page("pages/1_📊_股票分析.py")
 
+if 'c_sub' in st.query_params and st.query_params['c_sub']:
+    st.session_state['selected_concept_sub'] = str(st.query_params['c_sub']).strip()
+    del st.query_params['c_sub']
+    st.switch_page("pages/2_🏷️_概念股.py")
+
 if 'nav' in st.query_params and st.query_params['nav']:
     nav_target = str(st.query_params['nav']).strip()
     del st.query_params['nav']

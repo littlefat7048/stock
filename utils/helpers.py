@@ -401,6 +401,12 @@ def get_common_css() -> str:
         border: 1px solid #00D4AA;
         color: #00D4AA !important;
     }
+    .quote-row-link, .quote-row-link * {
+        text-decoration: none !important;
+    }
+    .quote-row-link:hover {
+        background: #111726 !important;
+    }
     </style>
     """
 
@@ -418,4 +424,173 @@ def get_top_nav_html(active: str = 'home') -> str:
         cls = "top-nav-item active" if key == active else "top-nav-item"
         links.append(f'<a href="/?nav={key}" target="_self" class="{cls}">{label}</a>')
     return f'<div class="top-nav-bar">{"".join(links)}</div>'
+
+
+def _make_kbar_svg(open_p: float, high_p: float, low_p: float, close_p: float, prev_close: float) -> str:
+    """繪製左側迷你紅綠 K 棒 SVG（含上下影線與實體）"""
+    if close_p > open_p:
+        color = "#ff3b5c"
+    elif close_p < open_p:
+        color = "#00e676"
+    else:
+        color = "#ff3b5c" if close_p >= prev_close else "#00e676"
+
+    hi = max(high_p, open_p, close_p)
+    lo = min(low_p, open_p, close_p)
+    span = hi - lo
+
+    if span <= 1e-6:
+        return (
+            f'<svg width="14" height="32" viewBox="0 0 14 32" style="flex-shrink:0;margin-right:6px;">'
+            f'<line x1="7" y1="10" x2="7" y2="22" stroke="{color}" stroke-width="1.8"/>'
+            f'<rect x="2" y="14.5" width="10" height="3" rx="1" fill="{color}"/>'
+            f'</svg>'
+        )
+
+    def to_y(val):
+        return 28.0 - ((val - lo) / span) * 24.0
+
+    y_open = to_y(open_p)
+    y_close = to_y(close_p)
+    y_top = min(y_open, y_close)
+    body_h = max(2.8, abs(y_close - y_open))
+
+    return (
+        f'<svg width="14" height="32" viewBox="0 0 14 32" style="flex-shrink:0;margin-right:6px;">'
+        f'<line x1="7" y1="3" x2="7" y2="29" stroke="{color}" stroke-width="1.8" stroke-linecap="round"/>'
+        f'<rect x="2.5" y="{y_top:.1f}" width="9" height="{body_h:.1f}" rx="1.2" fill="{color}"/>'
+        f'</svg>'
+    )
+
+
+def _make_sparkline_svg(uid: str, prices: list, prev_close: float, close_p: float) -> str:
+    """繪製右側迷你盤中走勢圖 SVG（平盤虛線 + 平盤以上紅、平盤以下綠雙色漸層）"""
+    pts = [float(x) for x in prices if x is not None and float(x) > 0]
+    if len(pts) < 2:
+        base = close_p if close_p > 0 else 100.0
+        pts = [base, base]
+
+    ref = prev_close if prev_close > 0 else pts[0]
+    min_v = min(min(pts), ref)
+    max_v = max(max(pts), ref)
+    pad = max((max_v - min_v) * 0.08, ref * 0.003, 0.01)
+    lo = min_v - pad
+    hi = max_v + pad
+    span = max(hi - lo, 0.01)
+
+    w, h = 104.0, 40.0
+
+    def to_y(val):
+        y = 36.0 - ((val - lo) / span) * 32.0
+        return max(3.0, min(37.0, y))
+
+    y_ref = to_y(ref)
+    n = len(pts)
+    coords = []
+    for i, p in enumerate(pts):
+        x = 2.0 + (i / (n - 1)) * 100.0
+        y = to_y(p)
+        coords.append((x, y))
+
+    poly_str = " ".join(f"{x:.1f},{y:.1f}" for x, y in coords)
+    area_str = f"2.0,{y_ref:.1f} {poly_str} 102.0,{y_ref:.1f}"
+
+    return (
+        f'<svg width="104" height="40" viewBox="0 0 104 40" style="display:block;background:#090D14;border:1px solid #1E293B;border-radius:4px;">'
+        f'<defs>'
+        f'<clipPath id="ca_{uid}"><rect x="0" y="0" width="104" height="{y_ref:.1f}"/></clipPath>'
+        f'<clipPath id="cb_{uid}"><rect x="0" y="{y_ref:.1f}" width="104" height="{40.0 - y_ref:.1f}"/></clipPath>'
+        f'<linearGradient id="gr_{uid}" x1="0" y1="0" x2="0" y2="1">'
+        f'<stop offset="0%" stop-color="#ff3b5c" stop-opacity="0.48"/>'
+        f'<stop offset="100%" stop-color="#ff3b5c" stop-opacity="0.06"/>'
+        f'</linearGradient>'
+        f'<linearGradient id="gg_{uid}" x1="0" y1="0" x2="0" y2="1">'
+        f'<stop offset="0%" stop-color="#00e676" stop-opacity="0.06"/>'
+        f'<stop offset="100%" stop-color="#00e676" stop-opacity="0.48"/>'
+        f'</linearGradient>'
+        f'</defs>'
+        f'<line x1="0" y1="{y_ref:.1f}" x2="104" y2="{y_ref:.1f}" stroke="#64748B" stroke-width="1" stroke-dasharray="2.5,2.5"/>'
+        f'<g clip-path="url(#ca_{uid})">'
+        f'<polygon points="{area_str}" fill="url(#gr_{uid})"/>'
+        f'<polyline points="{poly_str}" fill="none" stroke="#ff3b5c" stroke-width="1.5" stroke-linejoin="round"/>'
+        f'</g>'
+        f'<g clip-path="url(#cb_{uid})">'
+        f'<polygon points="{area_str}" fill="url(#gg_{uid})"/>'
+        f'<polyline points="{poly_str}" fill="none" stroke="#00e676" stroke-width="1.5" stroke-linejoin="round"/>'
+        f'</g>'
+        f'</svg>'
+    )
+
+
+def render_quote_table_html(rows: list) -> str:
+    """
+    將多檔股票報價渲染為仿專業看盤 App 的深色列表 HTML
+    rows 每個元素包含: code, name, market_short, role, open, high, low, close, prev_close, change, pct_change, sparkline
+    """
+    html_parts = [
+        '<div style="background:#070A10;border:1px solid #1E2638;border-radius:12px;overflow:hidden;margin-top:4px;">',
+        '<div style="display:grid;grid-template-columns:1.35fr 1.15fr 108px;align-items:center;padding:8px 10px;background:#0F1420;border-bottom:1px solid #1E2638;color:#94A3B8;font-size:12px;font-weight:bold;">',
+        '<div>股名</div>',
+        '<div style="text-align:right;padding-right:8px;">成交價 ｜ 漲跌幅</div>',
+        '<div style="text-align:center;">走勢圖</div>',
+        '</div>'
+    ]
+
+    for idx, r in enumerate(rows):
+        code = str(r.get('code', ''))
+        name = str(r.get('name', code))
+        m_short = str(r.get('market_short', '市'))
+        role = str(r.get('role', '')).strip()
+        open_p = float(r.get('open', 0.0))
+        high_p = float(r.get('high', 0.0))
+        low_p = float(r.get('low', 0.0))
+        close_p = float(r.get('close', 0.0))
+        prev_c = float(r.get('prev_close', 0.0))
+        chg = float(r.get('change', 0.0))
+        pct = float(r.get('pct_change', 0.0))
+        spark = r.get('sparkline', [])
+
+        if chg > 0:
+            p_color = "#ff3b5c"
+            chg_str = f"+{chg:.2f} ▲{abs(pct):.2f}%"
+        elif chg < 0:
+            p_color = "#00e676"
+            chg_str = f"{chg:.2f} ▼{abs(pct):.2f}%"
+        else:
+            p_color = "#E2E8F0"
+            chg_str = f"0.00 0.00%"
+
+        price_str = f"{close_p:.2f}" if close_p > 0 else "--"
+        kbar_svg = _make_kbar_svg(open_p, high_p, low_p, close_p, prev_c)
+        spark_svg = _make_sparkline_svg(f"{code}_{idx}", spark, prev_c, close_p)
+
+        role_badge = ""
+        if role:
+            short_role = role[:9] + ("…" if len(role) > 9 else "")
+            role_badge = f'<span style="display:inline-block;background:#1E293B;color:#CBD5E1;font-size:10px;padding:1px 5px;border-radius:4px;margin-left:5px;vertical-align:middle;">{short_role}</span>'
+
+        row_html = (
+            f'<a href="/?stock={code}" target="_self" class="quote-row-link" style="display:grid;grid-template-columns:1.35fr 1.15fr 108px;align-items:center;padding:10px 10px;border-bottom:1px solid #161D2B;text-decoration:none !important;background:#070A10;transition:background 0.12s;">'
+            f'<div style="display:flex;align-items:center;min-width:0;">'
+            f'{kbar_svg}'
+            f'<div style="min-width:0;overflow:hidden;">'
+            f'<div style="color:#FFFFFF;font-size:17px;font-weight:bold;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{name}</div>'
+            f'<div style="color:#94A3B8;font-size:12px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'
+            f'<span style="background:#1E293B;color:#94A3B8;border-radius:50%;padding:0px 4px;font-size:10px;margin-right:3px;">⏳</span>'
+            f'{code} {m_short}{role_badge}'
+            f'</div>'
+            f'</div>'
+            f'</div>'
+            f'<div style="text-align:right;padding-right:10px;">'
+            f'<div style="color:{p_color};font-size:19px;font-weight:800;line-height:1.15;font-family:\'Segoe UI\',Roboto,sans-serif;">{price_str}</div>'
+            f'<div style="color:{p_color};font-size:12px;font-weight:600;margin-top:3px;">{chg_str}</div>'
+            f'</div>'
+            f'<div style="display:flex;justify-content:center;">{spark_svg}</div>'
+            f'</a>'
+        )
+        html_parts.append(row_html)
+
+    html_parts.append('</div>')
+    return "".join(html_parts)
+
 

@@ -1,6 +1,8 @@
 """
-台股自選股追蹤與備註管理頁面
-支援以代號或中文股名新增、編輯投資備註、一鍵跳轉個股完整分析
+台股自選股追蹤與看盤管理頁面
+支援：
+- 仿專業看盤 App 的「紅綠K棒 + 報價漲跌 + 平盤雙色走勢圖」自選股看盤面板
+- 代號或中文股名快速新增、投資備註編輯、一鍵跳轉個股完整分析
 """
 import importlib
 import streamlit as st
@@ -9,29 +11,33 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import utils.helpers
+import modules.data_fetcher
 importlib.reload(utils.helpers)
+importlib.reload(modules.data_fetcher)
+
 from utils.helpers import (
     load_watchlist, save_watchlist,
     resolve_stock_query, get_tw_stock_chinese_info,
-    get_concept_tags_for_stock, load_concept_data, get_common_css, get_top_nav_html
+    get_concept_tags_for_stock, load_concept_data,
+    get_common_css, get_top_nav_html, render_quote_table_html
 )
+from modules.data_fetcher import get_batch_quotes_with_intraday
 
-st.set_page_config(page_title='自選股清單', page_icon='⭐', layout='wide')
+st.set_page_config(page_title='自選股看盤清單', page_icon='⭐', layout='wide')
 st.markdown(get_common_css(), unsafe_allow_html=True)
 st.markdown(get_top_nav_html('watch'), unsafe_allow_html=True)
 
-st.title("⭐ 我的台股自選股清單")
-st.caption("輸入股票代號（如 5484）或中文名稱（如 慧友、台積電）加入追蹤，並記錄買進理由或目標價。")
+st.title("⭐ 我的台股自選股看盤清單")
 
 watchlist = load_watchlist()
 
-col1, col2 = st.columns([1.5, 2.5])
+col1, col2, col3 = st.columns([1.8, 2.0, 1.2])
 with col1:
-    new_input = st.text_input("➕ 股票代號或中文股名", placeholder="例如：5484 或 慧友")
+    new_input = st.text_input("➕ 輸入股票代號或中文股名", placeholder="例如：5484、慧友、3081、聯亞", label_visibility="collapsed")
 with col2:
-    new_note = st.text_input("📝 投資備註（選填）", placeholder="例如：等待拉回 38 元支撐買進")
-
-if st.button("➕ 加入自選股", use_container_width=True):
+    new_note = st.text_input("📝 投資備註（選填）", placeholder="備註（選填）：如 38元支撐買進", label_visibility="collapsed")
+with col3:
+    if st.button("➕ 加入自選", use_container_width=True):
         if new_input:
             code = resolve_stock_query(new_input)
             cinfo = get_tw_stock_chinese_info(code)
@@ -47,45 +53,62 @@ if st.button("➕ 加入自選股", use_container_width=True):
             else:
                 st.warning(f"{cinfo.get('name', code)} ({code}) 已經在自選股清單中！")
 
-st.divider()
-
 if not watchlist:
     st.info("目前尚未加入任何自選股。您可以在上方輸入代號/股名新增，或在「股票分析」頁面點擊加入！")
 else:
-    concept_data = load_concept_data()
-    for idx, stock in enumerate(watchlist):
-        scode = stock['code']
-        cinfo = get_tw_stock_chinese_info(scode)
-        sname = cinfo.get('name', stock.get('name', scode))
-        smarket = cinfo.get('market', '台股')
-        sinds = ' / '.join(cinfo.get('industries', []))
-        tags = get_concept_tags_for_stock(scode, concept_data)
+    codes = [s['code'] for s in watchlist]
+    with st.spinner("正在載入自選股即時報價與走勢圖..."):
+        quotes_map = get_batch_quotes_with_intraday(codes)
 
-        c1, c2, c3, c4 = st.columns([1.5, 2.2, 2.5, 1.4])
-        with c1:
-            st.markdown(f"### 🇹🇼 {sname} `({scode})`")
-            st.caption(f"{smarket} ｜ {sinds}")
-        with c2:
-            st.markdown("**🏷️ 所屬題材概念**")
-            st.write(", ".join(tags) if tags else f"{sinds or '一般台股'}")
-        with c3:
-            updated_note = st.text_input(
-                "📌 投資備註",
-                value=stock.get('note', ''),
-                key=f"note_{scode}",
-                placeholder="輸入買進價位或觀察重點..."
-            )
-            if updated_note != stock.get('note', ''):
-                watchlist[idx]['note'] = updated_note
-                save_watchlist(watchlist)
-                st.toast("💾 備註已自動儲存")
-        with c4:
-            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-            if st.button("📊 深度分析", key=f"view_{scode}", use_container_width=True):
-                st.session_state['target_stock'] = scode
-                st.switch_page("pages/1_📊_股票分析.py")
-            if st.button("🗑️ 移除", key=f"del_{scode}", use_container_width=True):
-                watchlist = [s for s in watchlist if s['code'] != scode]
-                save_watchlist(watchlist)
-                st.rerun()
-        st.divider()
+    concept_data = load_concept_data()
+    rows_data = []
+    for s in watchlist:
+        c = s['code']
+        q = quotes_map.get(c, {})
+        tags = get_concept_tags_for_stock(c, concept_data)
+        note_str = s.get('note', '').strip()
+        role_display = note_str if note_str else (tags[0] if tags else '')
+        rows_data.append({
+            'code': c,
+            'name': q.get('name') or s.get('name', c),
+            'market_short': q.get('market_short', '市'),
+            'role': role_display,
+            'open': q.get('open', 0.0),
+            'high': q.get('high', 0.0),
+            'low': q.get('low', 0.0),
+            'close': q.get('close', 0.0),
+            'prev_close': q.get('prev_close', 0.0),
+            'change': q.get('change', 0.0),
+            'pct_change': q.get('pct_change', 0.0),
+            'sparkline': q.get('sparkline', []),
+        })
+
+    table_html = render_quote_table_html(rows_data)
+    st.markdown(table_html, unsafe_allow_html=True)
+    st.caption("💡 點擊任一列股票即可直接進入完整深度分析！")
+
+    with st.expander("📝 編輯自選股備註與移除管理", expanded=False):
+        for idx, stock in enumerate(watchlist):
+            scode = stock['code']
+            cinfo = get_tw_stock_chinese_info(scode)
+            sname = cinfo.get('name', stock.get('name', scode))
+            mc1, mc2, mc3 = st.columns([1.5, 2.5, 1.0])
+            with mc1:
+                st.markdown(f"**{sname} ({scode})**")
+            with mc2:
+                updated_note = st.text_input(
+                    "備註",
+                    value=stock.get('note', ''),
+                    key=f"note_{scode}",
+                    placeholder="輸入買進價位或觀察重點...",
+                    label_visibility="collapsed"
+                )
+                if updated_note != stock.get('note', ''):
+                    watchlist[idx]['note'] = updated_note
+                    save_watchlist(watchlist)
+                    st.toast("💾 備註已儲存")
+            with mc3:
+                if st.button("🗑️ 移除", key=f"del_{scode}", use_container_width=True):
+                    watchlist = [s for s in watchlist if s['code'] != scode]
+                    save_watchlist(watchlist)
+                    st.rerun()

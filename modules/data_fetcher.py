@@ -356,3 +356,104 @@ def get_twse_institutional_summary():
         return data
     except Exception:
         return {}
+
+
+def get_batch_quotes_with_intraday(codes: list) -> dict:
+    """
+    批次取得多檔台股的最新報價、日K四價（開高低收）、昨收平盤價與當日 5 分 K 走勢序列
+    用於繪製仿看盤 App 的「紅綠K棒 + 報價漲跌 + 平盤雙色走勢圖」列表
+    """
+    clean_codes = []
+    for c in codes:
+        sc = str(c).strip()
+        if sc and sc not in clean_codes:
+            clean_codes.append(sc)
+    if not clean_codes:
+        return {}
+
+    import hashlib
+    key_hash = hashlib.md5(",".join(sorted(clean_codes)).encode('utf-8')).hexdigest()[:12]
+    cache_key = f"batch_intraday_{key_hash}"
+    cached = _get_cache(cache_key)
+    if cached:
+        return cached
+
+    ticker_map = {c: normalize_ticker(c) for c in clean_codes}
+    tickers = list(ticker_map.values())
+
+    result = {}
+    try:
+        # 1. 批次下載近 10 日日線（取得精確昨收、今日開高低收）
+        df_daily = yf.download(tickers, period='10d', interval='1d', group_by='ticker', progress=False, threads=True)
+        # 2. 批次下載近 5 日 5 分 K（取得當日盤中走勢圖點位）
+        df_5m = yf.download(tickers, period='5d', interval='5m', group_by='ticker', progress=False, threads=True)
+    except Exception:
+        df_daily = pd.DataFrame()
+        df_5m = pd.DataFrame()
+
+    single_mode = (len(tickers) == 1)
+
+    for c in clean_codes:
+        tk = ticker_map[c]
+        cinfo = get_tw_stock_chinese_info(c)
+        market_raw = cinfo.get('market', '上市')
+        market_short = '櫃' if '櫃' in market_raw else '市'
+        info_item = {
+            'code': c,
+            'name': cinfo.get('name', c),
+            'market_short': market_short,
+            'open': 0.0,
+            'high': 0.0,
+            'low': 0.0,
+            'close': 0.0,
+            'prev_close': 0.0,
+            'change': 0.0,
+            'pct_change': 0.0,
+            'sparkline': []
+        }
+
+        try:
+            sub_d = df_daily if single_mode else df_daily[tk]
+            sub_d = sub_d.dropna(how='all')
+            if not sub_d.empty:
+                last_row = sub_d.iloc[-1]
+                close_v = float(last_row['Close'])
+                open_v = float(last_row['Open']) if pd.notna(last_row['Open']) else close_v
+                high_v = float(last_row['High']) if pd.notna(last_row['High']) else max(open_v, close_v)
+                low_v = float(last_row['Low']) if pd.notna(last_row['Low']) else min(open_v, close_v)
+                prev_v = float(sub_d['Close'].iloc[-2]) if len(sub_d) > 1 else open_v
+                chg_v = close_v - prev_v
+                pct_v = (chg_v / prev_v * 100.0) if prev_v else 0.0
+
+                info_item.update({
+                    'open': round(open_v, 2),
+                    'high': round(high_v, 2),
+                    'low': round(low_v, 2),
+                    'close': round(close_v, 2),
+                    'prev_close': round(prev_v, 2),
+                    'change': round(chg_v, 2),
+                    'pct_change': round(pct_v, 2),
+                })
+
+                # 先以近 10 日收盤價作為預設走勢備援
+                info_item['sparkline'] = [round(float(x), 2) for x in sub_d['Close'].dropna().tolist()]
+        except Exception:
+            pass
+
+        try:
+            sub_m = df_5m if single_mode else df_5m[tk]
+            sub_m = sub_m.dropna(how='all')
+            if not sub_m.empty:
+                last_date = sub_m.index[-1].date()
+                day_m = sub_m[sub_m.index.date == last_date]
+                closes_m = [round(float(x), 2) for x in day_m['Close'].dropna().tolist()]
+                if len(closes_m) >= 5:
+                    info_item['sparkline'] = closes_m
+        except Exception:
+            pass
+
+        result[c] = info_item
+
+    _set_cache(cache_key, result)
+    return result
+

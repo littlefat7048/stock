@@ -140,8 +140,127 @@ def create_institutional_chart(data, days=25):
         ))
 
     fig.add_hline(y=0, line_color='#FFFFFF', line_width=1)
-    fig.update_layout(barmode='relative', height=400, title='三大法人每日買賣超明細（單位：張）')
+    fig.update_layout(barmode='relative', height=380, title='三大法人每日買賣超明細（單位：張）')
     return _apply_dark_layout(fig)
+
+
+def create_mofi_institutional_force_chart(mofi_df, investor_type='三大法人', denom_mode='佔股本比', sensitivity=2.0):
+    """
+    繪製仿 @MOFI「法人力度 (2026 版)」專業副圖：
+    - 繞零軸紅綠力道柱狀圖（往上＝站買方，往下＝站賣方）
+    - 白色實線：近期法人動向（10日快線）
+    - 白色虛線：長期法人基準（40日慢線）
+    - 零軸轉強色帶：當近期動向 > 長期基準時，於零軸標示橄欖黃/亮綠轉強記號
+    - 🟡 大黃球：通過雙層過濾（標準化 Z-Score >= sensitivity 且具實質股本份量）之「顯著買超（極端買入訊號）」
+    """
+    fig = go.Figure()
+    if mofi_df is None or mofi_df.empty or 'Force_Ratio' not in mofi_df.columns:
+        return _apply_dark_layout(fig)
+
+    bar_colors = []
+    for _, r in mofi_df.iterrows():
+        v = float(r['Force_Ratio'])
+        if r.get('Extreme_Buy'):
+            bar_colors.append('#FF2A2A')  # 極端顯著買超：高亮紅
+        elif v > 0:
+            bar_colors.append('#B71C1C')  # 一般買超：暗紅
+        elif r.get('Extreme_Sell'):
+            bar_colors.append('#00E676')  # 極端賣超：亮綠
+        else:
+            bar_colors.append('#2E7D32')  # 一般賣超：暗綠
+
+    sub_label = "（投本比）" if (investor_type == '投信' and denom_mode == '佔股本比') else ""
+    fig.add_trace(go.Bar(
+        x=mofi_df.index,
+        y=mofi_df['Force_Ratio'],
+        marker_color=bar_colors,
+        name=f'{investor_type}力度-{denom_mode}{sub_label}',
+        customdata=mofi_df[['Target_Lots', 'Force_Pct', 'Z_Score']],
+        hovertemplate=(
+            "<b>%{x}</b><br>"
+            f"{investor_type}買賣超：<b>%{{customdata[0]:+,.1f}} 張</b><br>"
+            f"{denom_mode}比率：<b>%{{y:.4f}} (%{{customdata[1]:+.3f}}%)</b><br>"
+            "標準化 Z-Score：<b>%{customdata[2]:+.2f} σ</b><extra></extra>"
+        )
+    ))
+
+    # 白色虛線：長期法人基準 (Slow_MA)
+    if 'Slow_MA' in mofi_df.columns:
+        fig.add_trace(go.Scatter(
+            x=mofi_df.index,
+            y=mofi_df['Slow_MA'],
+            mode='lines',
+            line=dict(color='#CBD5E1', width=1.6, dash='dash'),
+            name='長期法人基準(慢線)'
+        ))
+
+    # 白色實線：近期法人動向 (Fast_MA)
+    if 'Fast_MA' in mofi_df.columns:
+        fig.add_trace(go.Scatter(
+            x=mofi_df.index,
+            y=mofi_df['Fast_MA'],
+            mode='lines',
+            line=dict(color='#FFFFFF', width=2.4),
+            name='近期法人動向(快線)'
+        ))
+
+    # 零軸上的買方轉強色塊（對應圖一零軸上的橄欖金/綠色橫條）
+    bull_strong_df = mofi_df[mofi_df['Zero_State'] == 'bull_strong']
+    bull_turn_df = mofi_df[mofi_df['Zero_State'] == 'bull_turn']
+    if not bull_turn_df.empty:
+        fig.add_trace(go.Scatter(
+            x=bull_turn_df.index,
+            y=[0.0] * len(bull_turn_df),
+            mode='markers',
+            marker=dict(symbol='square', size=7, color='#9E9D24'),
+            name='動向翻多(快>慢)',
+            hoverinfo='skip'
+        ))
+    if not bull_strong_df.empty:
+        fig.add_trace(go.Scatter(
+            x=bull_strong_df.index,
+            y=[0.0] * len(bull_strong_df),
+            mode='markers',
+            marker=dict(symbol='square', size=7, color='#00C853'),
+            name='買方強勢區',
+            hoverinfo='skip'
+        ))
+
+    # 🟡 大黃球：顯著買超（極端訊號）
+    eb_df = mofi_df[mofi_df['Extreme_Buy'] == True]
+    if not eb_df.empty:
+        fig.add_trace(go.Scatter(
+            x=eb_df.index,
+            y=eb_df['Force_Ratio'] * 0.85,
+            mode='markers',
+            marker=dict(
+                symbol='circle',
+                size=16,
+                color='#FFEA00',
+                line=dict(color='#FFF9C4', width=2)
+            ),
+            name=f'🟡 顯著買超 (Z≧{sensitivity}σ)',
+            customdata=eb_df[['Target_Lots', 'Force_Pct', 'Z_Score']],
+            hovertemplate=(
+                "🟡 <b>顯著買超（法人強拉信號！）</b><br>"
+                "買超張數：<b>%{customdata[0]:+,.1f} 張</b><br>"
+                f"{denom_mode}：<b>%{{customdata[1]:+.3f}}%</b> ｜ Z-Score：<b>%{{customdata[2]:+.2f}} σ</b><extra></extra>"
+            )
+        ))
+
+    fig.add_hline(y=0, line_color='#64748B', line_width=1, line_dash='dot')
+    title_str = f"法人力度 (2026 版)｜{investor_type} × {denom_mode}{sub_label}（🟡＝顯著買超）"
+    fig = _apply_dark_layout(fig)
+    fig.update_layout(
+        height=355,
+        title=dict(text=title_str, y=0.97, x=0.01, xanchor='left', yanchor='top', font=dict(size=13.5, color='#FFD600')),
+        margin=dict(l=10, r=44, t=74, b=32),
+        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='left', x=0, font=dict(size=10.5)),
+        yaxis=dict(side='right', tickformat='.3f', fixedrange=True, gridcolor=GRID_COLOR),
+        plot_bgcolor='#080B10',
+        paper_bgcolor='#0E1117'
+    )
+    return fig
 
 
 def create_margin_chart(data):

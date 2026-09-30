@@ -287,15 +287,45 @@ def generate_instant_diagnosis(
     elif '死亡交叉' in kd_txt:
         risks.append(f"【短線轉折】KD {kd_txt}")
 
-    # 2. 籌碼面優缺點
+    # 2. 籌碼面優缺點（結合「法人力度：標準化 Z-Score + 佔股本比」雙層過濾）
     if chip_summary and chip_summary.get('available'):
         tot_5d = chip_summary.get('total_5d', 0)
         f_5d = chip_summary.get('foreign_5d', 0)
         t_5d = chip_summary.get('trust_5d', 0)
-        if tot_5d > 0:
-            strengths.append(f"【法人籌碼】近 5 日三大法人合計買超 {tot_5d:+,.0f} 張（外資 {f_5d:+,.0f} 張、投信 {t_5d:+,.0f} 張）")
-        elif tot_5d < 0:
-            risks.append(f"【法人籌碼】近 5 日三大法人合計賣超 {tot_5d:,.0f} 張（外資 {f_5d:+,.0f} 張、投信 {t_5d:+,.0f} 張）")
+        imeta = chip_summary.get('intensity_meta') or {}
+        if imeta.get('available'):
+            z1 = imeta.get('latest_z_score', 0.0)
+            cap1 = imeta.get('latest_cap_pct', 0.0)
+            cap5 = imeta.get('sum5_cap_pct', 0.0)
+            sig5 = imeta.get('sig_buy_count_5d', 0)
+            sig20 = imeta.get('sig_buy_count_20d', 0)
+            if imeta.get('is_latest_sig_buy') or (sig5 >= 1 and cap5 > 0):
+                strengths.append(
+                    f"【🔥 法人力度（顯著買超）】近5日出現 {sig5} 次「顯著買超(🟡)」信號！"
+                    f"最新單日 Z值 {z1:+.2f}σ、佔股本比 {cap1:+.3f}%（近5日累計掃貨佔股本 {cap5:+.3f}%）"
+                )
+            elif tot_5d > 0:
+                strengths.append(
+                    f"【法人籌碼】近 5 日三大法人買超 {tot_5d:+,.0f} 張（佔股本比 {cap5:+.3f}%，Z值 {z1:+.2f}σ）"
+                )
+            elif sig20 >= 2:
+                strengths.append(
+                    f"【🔥 波段法人力度】近 20 日累計出現 {sig20} 次「顯著買超(🟡)」鎖碼信號（亮燈日：{'、'.join((imeta.get('sig_buy_dates_20d') or [])[-3:])}），具備波段主力推升底氣"
+                )
+
+            if imeta.get('is_latest_sig_sell') or (cap5 <= -0.50):
+                risks.append(
+                    f"【🟢 法人短線調節】近 5 日三大法人高檔獲利調節 {tot_5d:,.0f} 張（累計佔股本 {cap5:+.3f}%，最新單日 Z值 {z1:+.2f}σ）"
+                )
+            elif tot_5d < 0:
+                risks.append(
+                    f"【法人籌碼】近 5 日三大法人小幅調節 {tot_5d:,.0f} 張（佔股本比 {cap5:+.3f}%，外資 {f_5d:+,.0f} 張、投信 {t_5d:+,.0f} 張）"
+                )
+        else:
+            if tot_5d > 0:
+                strengths.append(f"【法人籌碼】近 5 日三大法人合計買超 {tot_5d:+,.0f} 張（外資 {f_5d:+,.0f} 張、投信 {t_5d:+,.0f} 張）")
+            elif tot_5d < 0:
+                risks.append(f"【法人籌碼】近 5 日三大法人合計賣超 {tot_5d:,.0f} 張（外資 {f_5d:+,.0f} 張、投信 {t_5d:+,.0f} 張）")
 
     # 3. 營收與財報優缺點
     if financials:

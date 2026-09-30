@@ -42,7 +42,8 @@ from modules.technical_analysis import (
 )
 from modules.chip_analysis import (
     get_institutional_trend, get_margin_trading,
-    get_chip_score, get_chip_summary
+    get_chip_score, get_chip_summary,
+    calculate_chip_intensity, calculate_mofi_institutional_series
 )
 from modules.ai_analysis import generate_stock_analysis, get_gemini_model
 from utils.helpers import (
@@ -54,7 +55,7 @@ from utils.helpers import (
 from utils.charts import (
     create_candlestick_chart, create_macd_chart, create_kd_chart,
     create_rsi_chart, create_institutional_chart, create_margin_chart,
-    create_eps_chart, create_revenue_chart
+    create_eps_chart, create_revenue_chart, create_mofi_institutional_force_chart
 )
 
 from utils.helpers import get_common_css, get_top_nav_html
@@ -104,10 +105,10 @@ if search_btn or raw_input:
     stock_code = resolve_stock_query(raw_input)
     st.query_params['stock'] = stock_code
 
-    with st.spinner(f"正在載入台股 {stock_code} 完整基本面、公司業務、技術面、籌碼面與財報資料..."):
+    with st.spinner(f"正在載入台股 {stock_code} 完整基本面、公司業務、技術面、法人力度與財報資料..."):
         info       = get_stock_info(stock_code)
         df_price   = get_price_history(stock_code, period='1y')
-        chip_df    = get_institutional_trend(stock_code, days=25)
+        chip_df    = get_institutional_trend(stock_code, days=65)
         margin_df  = get_margin_trading(stock_code, days=25)
         financials = get_financials(stock_code)
         concepts   = load_concept_data()
@@ -119,22 +120,22 @@ if search_btn or raw_input:
         st.error(f"❌ 找不到台股代號「{raw_input}」（解析為 {stock_code}）的股價資料，請確認輸入的台股代號或中文名稱是否正確。")
         st.stop()
 
-    # 計算技術指標與籌碼分數
-    df_price = calculate_indicators(df_price)
-    tech_score, tech_label = get_technical_score(df_price)
-    support_resistance = find_support_resistance(df_price)
-    chip_score, chip_label = get_chip_score(chip_df)
-    chip_summary = get_chip_summary(chip_df, margin_df)
-
-    # 計算即時綜合診斷（買進/觀望/賣出 + 建議價位 + 優缺點）
-    diagnosis = generate_instant_diagnosis(df_price, info, chip_score, chip_summary, financials)
-
     # 取得最新價格與漲跌
     latest_close = float(df_price['Close'].iloc[-1])
     prev_close   = float(df_price['Close'].iloc[-2]) if len(df_price) > 1 else latest_close
     price_change = latest_close - prev_close
     pct_change   = (price_change / prev_close * 100) if prev_close else 0.0
     latest_date_str = df_price.index[-1].strftime('%Y/%m/%d') if hasattr(df_price.index[-1], 'strftime') else str(df_price.index[-1])[:10]
+
+    # 計算技術指標與籌碼分數（含雙層過濾「法人力度 / 顯著買超」）
+    df_price = calculate_indicators(df_price)
+    tech_score, tech_label = get_technical_score(df_price)
+    support_resistance = find_support_resistance(df_price)
+    chip_score, chip_label = get_chip_score(chip_df, info=info, latest_close=latest_close)
+    chip_summary = get_chip_summary(chip_df, margin_df, info=info, latest_close=latest_close)
+
+    # 計算即時綜合診斷（買進/觀望/賣出 + 建議價位 + 優缺點）
+    diagnosis = generate_instant_diagnosis(df_price, info, chip_score, chip_summary, financials)
 
     # 確保中文名稱顯示
     stock_name = info.get('name', stock_code)
@@ -455,6 +456,62 @@ if search_btn or raw_input:
                 config=PLOTLY_CFG
             )
 
+            # ── 緊接在 K 線與成交量下方：@MOFI「法人力度 (2026 版)」顯著買超副圖（還原圖一配置！）──
+            if chip_df is not None and not chip_df.empty:
+                st.markdown(
+                    "<div style='background:#131C2E; border:1px solid #263044; border-left:4px solid #FFD600; "
+                    "border-radius:8px; padding:8px 12px; margin:4px 0 6px 0;'>"
+                    "<div style='display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:4px;'>"
+                    "<span style='color:#FFD600; font-weight:bold; font-size:13.5px;'>🔥 法人力度 (2026 版) ── 雙層過濾「顯著買超(🟡)」副圖</span>"
+                    "<span style='color:#94A3B8; font-size:11px;'>🟡 亮黃圓點＝Z-Score 突破門檻＋佔股本比顯著（法人真正在拉）｜白實線(10MA)＞白虛線(40MA)＝中期吸籌</span>"
+                    "</div></div>",
+                    unsafe_allow_html=True
+                )
+                mc_1, mc_2, mc_3 = st.columns(3)
+                with mc_1:
+                    t1_inv = st.selectbox(
+                        "🏛 看哪個法人",
+                        ["三大法人", "外資", "投信", "自營商"],
+                        index=0,
+                        key="t1_mofi_inv"
+                    )
+                with mc_2:
+                    t1_denom_lbl = st.selectbox(
+                        "⚖️ 標準化分母（第二層）",
+                        ["佔股本比（佈局深度）", "成交力道（當日力道）"],
+                        index=0,
+                        key="t1_mofi_denom"
+                    )
+                    t1_denom = "佔股本比" if "佔股本比" in t1_denom_lbl else "成交力道"
+                with mc_3:
+                    t1_sens_lbl = st.selectbox(
+                        "🎯 極端靈敏度（Z-Score）",
+                        ["1.5σ（靈敏・提早發現）", "2.0σ（適中・標準顯著）", "2.5σ（嚴格・極端爆量）"],
+                        index=1,
+                        key="t1_mofi_sens"
+                    )
+                    t1_sens = 1.5 if "1.5" in t1_sens_lbl else (2.5 if "2.5" in t1_sens_lbl else 2.0)
+
+                mofi_t1_df = calculate_mofi_institutional_series(
+                    chip_df,
+                    df_price=df_price,
+                    info=info,
+                    investor_type=t1_inv,
+                    denom_mode=t1_denom,
+                    sensitivity=t1_sens
+                )
+                if mofi_t1_df is not None and not mofi_t1_df.empty:
+                    st.plotly_chart(
+                        create_mofi_institutional_force_chart(
+                            mofi_t1_df.tail(min(len(mofi_t1_df), k_bars)),
+                            investor_type=t1_inv,
+                            denom_mode=t1_denom,
+                            sensitivity=t1_sens
+                        ),
+                        use_container_width=True,
+                        config=PLOTLY_CFG
+                    )
+
             sub_col1, sub_col2 = st.columns(2)
             with sub_col1:
                 st.plotly_chart(create_macd_chart(df_price.tail(k_bars)), use_container_width=True, config=PLOTLY_CFG)
@@ -487,15 +544,110 @@ if search_btn or raw_input:
 
     # ── Tab 2：🏛 籌碼面分析 ───────────────────────────────
     with tab2:
-        st.subheader(f"🏛 {stock_name} ({stock_code}) 三大法人與資券籌碼分析")
+        st.subheader(f"🏛 {stock_name} ({stock_code}) 法人力度（顯著買超）與資券籌碼分析")
 
         if chip_summary.get('available'):
-            # 頂部籌碼統計卡片
+            # ══════════════════════════════════════════════════════
+            # 1. 核心亮點：「法人力度 (2026 版)」雙層過濾（標準化 Z-Score ＋ 佔股本比）
+            # ══════════════════════════════════════════════════════
+            imeta = chip_summary.get('intensity_meta') or {}
+            if imeta.get('available'):
+                sig_dates_str = "、".join(imeta.get('sig_buy_dates_20d') or []) or "近20日尚無極端買超亮燈"
+                border_col = "#FFD600" if (imeta.get('is_latest_sig_buy') or imeta.get('sig_buy_count_5d', 0) >= 1) else "#00D4AA"
+                st.markdown(
+                    f"<div class='info-card' style='border-left:4px solid {border_col}; padding:12px 14px; margin-bottom:10px;'>"
+                    f"<div style='display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:6px;'>"
+                    f"<span style='color:#FFD600; font-weight:bold; font-size:15px;'>🔥 法人力度（顯著買超）雙層過濾診斷：{imeta.get('headline', '')}</span>"
+                    f"<span style='background:#1E293B; color:#94A3B8; font-size:11px; padding:2px 8px; border-radius:12px;'>"
+                    f"公司總股本約 {imeta.get('total_lots', 0):,} 張</span>"
+                    f"</div>"
+                    f"<div style='font-size:13.5px; color:#F8FAFC; line-height:1.6; margin-bottom:8px;'>"
+                    f"💡 <b>為什麼不直接看買賣超張數？</b>同樣買超 1,000 張，放在大型權值股只是零頭，放在中小型股卻是重倉掃貨！"
+                    f"本指標先做<b>第一層「標準化 Z-Score（跟自己過去20天比是否異常放大）」</b>，再做<b>第二層「佔股本比（相對整間公司股本份量）」</b>：<br>"
+                    f"👉 <b>目前判讀：</b>{imeta.get('verdict', '')}"
+                    f"</div>"
+                    f"<div style='display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:6px; font-size:12.5px;'>"
+                    f"<div style='background:#161F30; padding:7px 9px; border-radius:6px;'>"
+                    f"<div style='color:#94A3B8; font-size:11px;'>📏 第一層：最新標準化 Z 值</div>"
+                    f"<div style='font-size:16px; font-weight:bold; color:{'#FFD600' if imeta.get('latest_z_score',0)>=1.5 else ('#e53935' if imeta.get('latest_z_score',0)>0 else '#43a047')};'>"
+                    f"{imeta.get('latest_z_score', 0.0):+.2f} σ</div>"
+                    f"<div style='color:#888; font-size:10.5px;'>≥ +1.5σ 代表異常大買</div>"
+                    f"</div>"
+                    f"<div style='background:#161F30; padding:7px 9px; border-radius:6px;'>"
+                    f"<div style='color:#94A3B8; font-size:11px;'>⚖️ 第二層：單日佔股本比</div>"
+                    f"<div style='font-size:16px; font-weight:bold; color:{'#e53935' if imeta.get('latest_cap_pct',0)>=0 else '#43a047'};'>"
+                    f"{imeta.get('latest_cap_pct', 0.0):+.3f}%</div>"
+                    f"<div style='color:#888; font-size:10.5px;'>外資 {imeta.get('latest_f_cap_pct',0):+.3f}%｜投本比 {imeta.get('latest_t_cap_pct',0):+.3f}%</div>"
+                    f"</div>"
+                    f"<div style='background:#161F30; padding:7px 9px; border-radius:6px;'>"
+                    f"<div style='color:#94A3B8; font-size:11px;'>📦 近 5 日累計佔股本比</div>"
+                    f"<div style='font-size:16px; font-weight:bold; color:{'#e53935' if imeta.get('sum5_cap_pct',0)>=0 else '#43a047'};'>"
+                    f"{imeta.get('sum5_cap_pct', 0.0):+.3f}%</div>"
+                    f"<div style='color:#888; font-size:10.5px;'>近20日累計：{imeta.get('sum20_cap_pct', 0.0):+.3f}%</div>"
+                    f"</div>"
+                    f"<div style='background:#161F30; padding:7px 9px; border-radius:6px;'>"
+                    f"<div style='color:#94A3B8; font-size:11px;'>🟡 顯著買超亮燈統計</div>"
+                    f"<div style='font-size:15px; font-weight:bold; color:#FFD600;'>"
+                    f"近5日 {imeta.get('sig_buy_count_5d', 0)} 次 / 近20日 {imeta.get('sig_buy_count_20d', 0)} 次</div>"
+                    f"<div style='color:#888; font-size:10.5px;'>亮燈日：{sig_dates_str}</div>"
+                    f"</div>"
+                    f"</div>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
+
+                # 互動式 @MOFI 法人力度圖表控制器（Tab 2 專屬）
+                c_m1, c_m2, c_m3 = st.columns(3)
+                with c_m1:
+                    t2_inv = st.selectbox(
+                        "🏛 選擇觀察法人（投信×佔股本比＝投本比）",
+                        ["三大法人", "外資", "投信", "自營商"],
+                        index=0,
+                        key="t2_mofi_inv"
+                    )
+                with c_m2:
+                    t2_denom_lbl = st.selectbox(
+                        "⚖️ 選擇標準化分母",
+                        ["佔股本比（佈局深度）", "成交力道（當日力道）"],
+                        index=0,
+                        key="t2_mofi_denom"
+                    )
+                    t2_denom = "佔股本比" if "佔股本比" in t2_denom_lbl else "成交力道"
+                with c_m3:
+                    t2_sens_lbl = st.selectbox(
+                        "🎯 極端買超(🟡)靈敏度門檻",
+                        ["1.5σ（靈敏・提早發現）", "2.0σ（適中・標準顯著）", "2.5σ（嚴格・極端爆量）"],
+                        index=1,
+                        key="t2_mofi_sens"
+                    )
+                    t2_sens = 1.5 if "1.5" in t2_sens_lbl else (2.5 if "2.5" in t2_sens_lbl else 2.0)
+
+                mofi_t2_df = calculate_mofi_institutional_series(
+                    chip_df,
+                    df_price=df_price,
+                    info=info,
+                    investor_type=t2_inv,
+                    denom_mode=t2_denom,
+                    sensitivity=t2_sens
+                )
+                if mofi_t2_df is not None and not mofi_t2_df.empty:
+                    st.plotly_chart(
+                        create_mofi_institutional_force_chart(
+                            mofi_t2_df,
+                            investor_type=t2_inv,
+                            denom_mode=t2_denom,
+                            sensitivity=t2_sens
+                        ),
+                        use_container_width=True,
+                        config=PLOTLY_CFG
+                    )
+
+            # 2. 頂部傳統籌碼統計卡片
             c1, c2, c3, c4 = st.columns(4)
             with c1:
                 st.markdown(
                     f"<div class='info-card'>"
-                    f"<div style='color:#94A3B8;font-size:13px;'>籌碼綜合評分</div>"
+                    f"<div style='color:#94A3B8;font-size:13px;'>籌碼綜合評分（含力度加成）</div>"
                     f"<div style='font-size:24px;font-weight:bold;color:#00D4AA;margin:4px 0;'>{chip_score} / 100</div>"
                     f"<div style='font-size:13px;'>{chip_label}</div>"
                     f"</div>",
@@ -535,7 +687,7 @@ if search_btn or raw_input:
                     unsafe_allow_html=True
                 )
 
-            # 三大法人買賣超圖表
+            # 三大法人買賣超張數堆疊圖表
             st.plotly_chart(create_institutional_chart(chip_df), use_container_width=True, config=PLOTLY_CFG)
 
             # 融資融券分析區
@@ -564,9 +716,15 @@ if search_btn or raw_input:
 
                 st.plotly_chart(create_margin_chart(margin_df), use_container_width=True, config=PLOTLY_CFG)
 
-            # 近期法人買賣超明細表
-            with st.expander("📋 查看近 15 個交易日三大法人買賣超明細表（單位：張）", expanded=True):
-                display_chip_df = chip_df[['外資', '投信', '自營商', '三大法人合計']].tail(15).iloc[::-1]
+            # 近期法人買賣超與「法人力度（佔股本比 + Z-Score）」明細表
+            with st.expander("📋 查看近 15 個交易日三大法人買賣超與「法人力度（佔股本比 / Z值）」明細表", expanded=True):
+                enriched_chip_df, _ = calculate_chip_intensity(chip_df, info=info, latest_close=latest_close)
+                if enriched_chip_df is not None and not enriched_chip_df.empty and '佔股本比(%)' in enriched_chip_df.columns:
+                    cols_show = ['外資', '投信', '自營商', '三大法人合計', '佔股本比(%)', '投信佔股本比(%)', '標準化Z值', '力度信號']
+                    cols_exist = [c for c in cols_show if c in enriched_chip_df.columns]
+                    display_chip_df = enriched_chip_df[cols_exist].tail(15).iloc[::-1]
+                else:
+                    display_chip_df = chip_df[['外資', '投信', '自營商', '三大法人合計']].tail(15).iloc[::-1]
                 st.dataframe(display_chip_df, use_container_width=True)
         else:
             st.info("此股票目前無近期三大法人買賣超明細資料。")

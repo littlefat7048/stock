@@ -20,8 +20,8 @@ def _apply_dark_layout(fig, bottom_margin=88, top_margin=52, legend_y=-0.22):
     """
     統一深色主題佈局：
     - 標題固定於最上方 (top)，圖例固定於最下方 (bottom)，徹底根絕手機版「標題與圖例重疊遮字」！
+    - 開啟橫向雙指縮放與平移 (xaxis fixedrange=False, dragmode='pan')，並鎖定縱軸 (yaxis fixedrange=True) 防止上下滑動跑掉！
     - 改用單點精簡提示 (hovermode='closest')，避免手機滑動時跳出巨大黑框遮住整張圖表！
-    - 全面放大座標軸、標題與圖例字體。
     """
     fig.update_layout(
         template='plotly_dark',
@@ -34,7 +34,7 @@ def _apply_dark_layout(fig, bottom_margin=88, top_margin=52, legend_y=-0.22):
             font=dict(size=16.5, color='#FFD54F')
         ),
         margin=dict(l=10, r=14, t=top_margin, b=bottom_margin),
-        dragmode=False,
+        dragmode='pan',
         hovermode='closest',
         hoverlabel=dict(
             bgcolor='rgba(14, 17, 23, 0.92)',
@@ -53,7 +53,7 @@ def _apply_dark_layout(fig, bottom_margin=88, top_margin=52, legend_y=-0.22):
     )
     fig.update_xaxes(
         showgrid=True, gridwidth=1, gridcolor=GRID_COLOR,
-        fixedrange=True,
+        fixedrange=False,
         tickfont=dict(size=13),
         automargin=True
     )
@@ -201,16 +201,17 @@ def create_institutional_chart(data, days=25):
 def create_mofi_institutional_force_chart(mofi_df, investor_type='三大法人', denom_mode='佔股本比', sensitivity=2.0):
     """
     繪製仿 @MOFI「法人力度 (2026 版)」專業副圖：
+    - 縱軸直接顯示百分比 (%)（例如 +2.0% 代表單日買超佔總股本 2%），直覺好懂！
     - 標題置頂、圖例置底，絕不重疊遮字！
-    - 點擊時僅顯示精簡 2 行提示，不遮擋 K 棒與紅綠柱！
+    - 支援橫向雙指放大看近期細節！
     """
     fig = go.Figure()
-    if mofi_df is None or mofi_df.empty or 'Force_Ratio' not in mofi_df.columns:
+    if mofi_df is None or mofi_df.empty or 'Force_Pct' not in mofi_df.columns:
         return _apply_dark_layout(fig)
 
     bar_colors = []
     for _, r in mofi_df.iterrows():
-        v = float(r['Force_Ratio'])
+        v = float(r['Force_Pct'])
         if r.get('Extreme_Buy'):
             bar_colors.append('#FF2A2A')  # 極端顯著買超：高亮紅
         elif v > 0:
@@ -223,9 +224,9 @@ def create_mofi_institutional_force_chart(mofi_df, investor_type='三大法人',
     sub_label = "（投本比）" if (investor_type == '投信' and denom_mode == '佔股本比') else ""
     fig.add_trace(go.Bar(
         x=mofi_df.index,
-        y=mofi_df['Force_Ratio'],
+        y=mofi_df['Force_Pct'],
         marker_color=bar_colors,
-        name=f'{investor_type}力度',
+        name=f'{investor_type}力度(%)',
         customdata=mofi_df[['Target_Lots', 'Force_Pct', 'Z_Score']],
         hovertemplate=(
             "<b>%{x}</b>｜"
@@ -234,22 +235,22 @@ def create_mofi_institutional_force_chart(mofi_df, investor_type='三大法人',
         )
     ))
 
-    # 白色虛線：長期法人基準 (Slow_MA)
+    # 白色虛線：長期法人基準 (Slow_MA 轉百分比)
     if 'Slow_MA' in mofi_df.columns:
         fig.add_trace(go.Scatter(
             x=mofi_df.index,
-            y=mofi_df['Slow_MA'],
+            y=mofi_df['Slow_MA'] * 100.0,
             mode='lines',
             line=dict(color='#CBD5E1', width=1.6, dash='dash'),
             name='長期基準(40MA)',
             hoverinfo='skip'
         ))
 
-    # 白色實線：近期法人動向 (Fast_MA)
+    # 白色實線：近期法人動向 (Fast_MA 轉百分比)
     if 'Fast_MA' in mofi_df.columns:
         fig.add_trace(go.Scatter(
             x=mofi_df.index,
-            y=mofi_df['Fast_MA'],
+            y=mofi_df['Fast_MA'] * 100.0,
             mode='lines',
             line=dict(color='#FFFFFF', width=2.4),
             name='近期動向(10MA)',
@@ -283,7 +284,7 @@ def create_mofi_institutional_force_chart(mofi_df, investor_type='三大法人',
     if not eb_df.empty:
         fig.add_trace(go.Scatter(
             x=eb_df.index,
-            y=eb_df['Force_Ratio'] * 0.85,
+            y=eb_df['Force_Pct'] * 0.85,
             mode='markers',
             marker=dict(
                 symbol='circle',
@@ -305,7 +306,7 @@ def create_mofi_institutional_force_chart(mofi_df, investor_type='三大法人',
     fig.update_layout(height=395, title_text=title_str)
     fig = _apply_dark_layout(fig, bottom_margin=96, top_margin=50, legend_y=-0.22)
     fig.update_layout(
-        yaxis=dict(side='right', tickformat='.3f', fixedrange=True, gridcolor=GRID_COLOR, tickfont=dict(size=13)),
+        yaxis=dict(side='right', ticksuffix='%', fixedrange=True, gridcolor=GRID_COLOR, tickfont=dict(size=13)),
         plot_bgcolor='#080B10',
         paper_bgcolor='#0E1117'
     )

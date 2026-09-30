@@ -335,7 +335,29 @@ if search_btn or raw_input:
         "🏭 產業生態與同業"
     ])
 
-    PLOTLY_CFG = {'displayModeBar': False, 'scrollZoom': False}
+    PLOTLY_CFG = {
+        'displayModeBar': True,
+        'modeBarButtonsToRemove': ['select2d', 'lasso2d', 'toImage', 'autoScale2d'],
+        'scrollZoom': True,
+        'displaylogo': False
+    }
+
+    MOFI_TUTORIAL_HTML = (
+        "<div style='background:#141E30; border:1px solid #38BDF8; border-radius:10px; padding:12px 15px; margin:6px 0 10px 0; font-size:17.5px; line-height:1.7;'>"
+        "<div style='color:#FFD600; font-weight:bold; font-size:19px; margin-bottom:6px;'>📖 30 秒看懂「法人力度 (2026 版)」圖表 5 大符號教學：</div>"
+        "<ul style='margin:0; padding-left:20px; color:#F8FAFC;'>"
+        "<li><b>🔴 紅柱 / 🟢 綠柱（三大法人力度 %）</b>：代表當天法人買賣超<b>「佔整間公司總股本的百分比」</b>（右側座標軸）。"
+        "紅柱往上＝法人買超（例如 <code>+2.0%</code> 代表一天買走公司 2% 股本！）；綠柱往下＝法人賣超。</li>"
+        "<li><b>🟡 亮黃色大圓球（顯著買超 ── 最重要的進場信號！）</b>：當某天紅柱突然衝高，系統算出來<b>比過去 20 天平均高出 1.5~2 個標準差（Z-Score）</b>，就會在紅柱頂端打上一顆 <b>🟡 大黃球</b>！"
+        "代表這天不是散戶小買，而是<b>「法人主力真正在點火大買、鎖碼拉抬」</b>！</li>"
+        "<li><b>⚪ 白色實線（近期動向 10MA） vs ⚪ 白色虛線（長期基準 40MA）</b>："
+        "白色實線是「近 10 天平均買超力道」，白色虛線是「過去 40 天長期平均基準」。"
+        "當<b>白色實線向上穿過白色虛線</b>，代表近期法人買盤比過去兩個月都還要強！</li>"
+        "<li><b>🟩 中間零軸上的「亮綠 / 橄欖黃小方塊」</b>："
+        "只要看到中間 `0.0%` 虛線上出現<b>一排綠色或黃色小方塊</b>，就代表目前正處於<b>「短線買盤 ＞ 長線基準」的法人偏多吸籌期</b>！</li>"
+        "<li><b>🔍 想要放大看最近幾天？</b>您可以直接點選上方的<b>「近2週(極大) / 近1月(放大)」</b>按鈕，或用手指在圖表上<b>「雙指左右張開放大、單指左右滑動」</b>（連點兩下圖表或點右上角 🏠 即可還原）！</li>"
+        "</ul></div>"
+    )
 
     # ── Tab 1：📊 技術面分析 ───────────────────────────────
     with tab1:
@@ -360,7 +382,7 @@ if search_btn or raw_input:
             f"<div class='info-card' style='border-left:4px solid #38BDF8; padding:10px 12px; margin-bottom:8px;'>"
             f"<div style='display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:6px;'>"
             f"<span style='color:#38BDF8; font-weight:bold; font-size:18.5px;'>📌 最新交易日（{latest_date_str}）詳細數據一覽（免點圖表直接看）</span>"
-            f"<span style='color:#94A3B8; font-size:16.5px;'>🔒 圖表已鎖定防誤觸滑走，輕點K棒可看單日十字查價</span>"
+            f"<span style='color:#94A3B8; font-size:16.5px;'>🔍 圖表支援「雙指左右放大、單指左右平移」，連點兩下或按右上角 🏠 還原</span>"
             f"</div>"
             f"<div style='display:grid; grid-template-columns: repeat(auto-fit, minmax(115px, 1fr)); gap:6px; font-size:17.5px;'>"
             f"<div style='background:#161F30; padding:6px 8px; border-radius:6px;'>"
@@ -433,11 +455,11 @@ if search_btn or raw_input:
             )
 
         with col_chart:
-            c_opt1, c_opt2 = st.columns([1.3, 1.7])
+            c_opt1, c_opt2 = st.columns([1.4, 1.6])
             with c_opt1:
                 k_range_label = st.radio(
-                    "🔍 K 線顯示範圍（取代手勢縮放）",
-                    ["近1月(放大)", "近3月(適中)", "近半年"],
+                    "🔍 選擇圖表顯示範圍（亦可雙指放大）",
+                    ["近2週(極大)", "近1月(放大)", "近3月(適中)", "近半年"],
                     index=1,
                     horizontal=True
                 )
@@ -448,7 +470,14 @@ if search_btn or raw_input:
                     default=['MA5', 'MA20', 'MA60']
                 )
 
-            k_bars = 25 if "近1月" in k_range_label else (65 if "近3月" in k_range_label else 140)
+            if "近2週" in k_range_label:
+                k_bars = 12
+            elif "近1月" in k_range_label:
+                k_bars = 25
+            elif "近3月" in k_range_label:
+                k_bars = 65
+            else:
+                k_bars = 140
 
             st.plotly_chart(
                 create_candlestick_chart(df_price.tail(k_bars), ma_options),
@@ -467,6 +496,9 @@ if search_btn or raw_input:
                     "</div></div>",
                     unsafe_allow_html=True
                 )
+                with st.expander("📖 看不懂這張圖嗎？點此展開「30 秒看懂法人力度圖表」白話教學", expanded=False):
+                    st.markdown(MOFI_TUTORIAL_HTML, unsafe_allow_html=True)
+
                 mc_1, mc_2, mc_3 = st.columns(3)
                 with mc_1:
                     t1_inv = st.selectbox(
@@ -597,6 +629,19 @@ if search_btn or raw_input:
                     unsafe_allow_html=True
                 )
 
+                # 展開式白話圖表教學
+                with st.expander("📖 看不懂下方「法人力度」圖表嗎？點此查看 5 大符號白話教學", expanded=True):
+                    st.markdown(MOFI_TUTORIAL_HTML, unsafe_allow_html=True)
+
+                t2_range_lbl = st.radio(
+                    "🔍 選擇籌碼圖表顯示範圍（亦可直接在圖上用雙指左右放大）",
+                    ["近2週(12日・極大)", "近1月(25日・放大)", "近3月(65日・完整)"],
+                    index=1,
+                    horizontal=True,
+                    key="t2_range_radio"
+                )
+                t2_bars = 12 if "近2週" in t2_range_lbl else (25 if "近1月" in t2_range_lbl else 65)
+
                 # 互動式 @MOFI 法人力度圖表控制器（Tab 2 專屬）
                 c_m1, c_m2, c_m3 = st.columns(3)
                 with c_m1:
@@ -634,7 +679,7 @@ if search_btn or raw_input:
                 if mofi_t2_df is not None and not mofi_t2_df.empty:
                     st.plotly_chart(
                         create_mofi_institutional_force_chart(
-                            mofi_t2_df,
+                            mofi_t2_df.tail(min(len(mofi_t2_df), t2_bars)),
                             investor_type=t2_inv,
                             denom_mode=t2_denom,
                             sensitivity=t2_sens
@@ -690,7 +735,11 @@ if search_btn or raw_input:
                 )
 
             # 三大法人買賣超張數堆疊圖表
-            st.plotly_chart(create_institutional_chart(chip_df), use_container_width=True, config=PLOTLY_CFG)
+            st.plotly_chart(
+                create_institutional_chart(chip_df.tail(min(len(chip_df), t2_bars if 't2_bars' in locals() else 25))),
+                use_container_width=True,
+                config=PLOTLY_CFG
+            )
 
             # 融資融券分析區
             if margin_df is not None and not margin_df.empty:

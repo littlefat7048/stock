@@ -51,7 +51,7 @@ st.markdown("""
     background: #1B202B;
     border: 1px solid #2E3646;
     color: #D1D5DB !important;
-    font-size: 14px;
+    font-size:17px;
     font-weight: 600;
     text-decoration: none !important;
     flex-shrink: 0;
@@ -241,8 +241,8 @@ else:
 
     st.markdown(
         f'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;padding:2px 4px;margin-bottom:2px;">'
-        f'<div style="font-size:13px;color:#94A3B8;"><b style="color:#FAFAFA;">{header_title}</b>：{header_desc}</div>'
-        f'<div style="font-size:12px;color:#94A3B8;">'
+        f'<div style="font-size:16px;color:#94A3B8;"><b style="color:#FAFAFA;">{header_title}</b>：{header_desc}</div>'
+        f'<div style="font-size:15px;color:#94A3B8;">'
         f'平均 <b style="color:{avg_color};">{avg_pct:+.2f}%</b> ｜ '
         f'<span style="color:#ff3b5c;">▲{up_cnt}</span> / <span style="color:#00e676;">▼{dn_cnt}</span>'
         f'</div>'

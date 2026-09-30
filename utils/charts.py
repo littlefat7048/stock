@@ -21,20 +21,24 @@ def _apply_dark_layout(fig):
         template='plotly_dark',
         paper_bgcolor=BG_COLOR,
         plot_bgcolor=PLOT_BG_COLOR,
-        font=dict(size=11, color=FONT_COLOR),
-        margin=dict(l=10, r=10, t=32, b=18),
+        font=dict(size=13.5, color=FONT_COLOR),
+        title_font=dict(size=15.5, color=FONT_COLOR),
+        margin=dict(l=12, r=12, t=42, b=24),
         dragmode=False,
         hovermode='x unified',
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        hoverlabel=dict(font_size=14),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=12.5))
     )
     fig.update_xaxes(
         showgrid=True, gridwidth=1, gridcolor='#2A324B',
         fixedrange=True,
+        tickfont=dict(size=12.5),
         showspikes=True, spikemode='across', spikesnap='cursor', spikecolor='#00D4AA', spikethickness=1
     )
     fig.update_yaxes(
         showgrid=True, gridwidth=1, gridcolor='#2A324B',
-        fixedrange=True
+        fixedrange=True,
+        tickfont=dict(size=12.5)
     )
     return fig
 

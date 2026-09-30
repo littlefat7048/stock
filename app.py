@@ -137,7 +137,7 @@ with st.sidebar:
 st.title("📊 台股每日盤後分析報告")
 st.caption(f"資料來源：7388chichi.pages.dev | 選取日期：{selected_date[:4]}/{selected_date[4:6]}/{selected_date[6:]}")
 
-st.markdown("<div style='font-size:13px; font-weight:bold; color:#00D4AA; margin-top:4px; margin-bottom:2px;'>🔍 直接輸入台股代號或中文股名查詢：</div>", unsafe_allow_html=True)
+st.markdown("<div style='font-size:16px; font-weight:bold; color:#00D4AA; margin-top:4px; margin-bottom:2px;'>🔍 直接輸入台股代號或中文股名查詢：</div>", unsafe_allow_html=True)
 hc1, hc2 = st.columns([3.6, 1.4])
 with hc1:
     home_stock_q = st.text_input(
@@ -177,7 +177,7 @@ else:
 
 # ── 今日焦點股快速捷徑（手機滑動晶片）───────────────────
 if stocks_in_report:
-    st.markdown("<div style='font-size:14px; font-weight:bold; margin-bottom:4px;'>🚀 今日熱門焦點股（左右滑動點擊直達）：</div>", unsafe_allow_html=True)
+    st.markdown("<div style='font-size:17px; font-weight:bold; margin-bottom:4px;'>🚀 今日熱門焦點股（左右滑動點擊直達）：</div>", unsafe_allow_html=True)
     focus_stocks = stocks_in_report[:15]
     chips_html = "".join([
         f'<a href="/?stock={s["code"]}" target="_self" class="stock-chip-link">'
@@ -212,18 +212,18 @@ if report_html:
     def inject_stock_links(html):
         """
         將報告 HTML 中的股票名稱/代碼包裝為呼叫 handleStockClick(code) 的互動元素。
-        1. 個股卡片標題：<span style="font-weight:bold;font-size:15px">6515 穎崴</span>
+        1. 個股卡片標題：<span style="font-weight:bold;font-size:18px">6515 穎崴</span>
         2. 段落文字中的「股名（代碼）」
         """
         # 1. 替換個股卡片標題
-        card_pattern = r'<span style="font-weight:bold;font-size:15px">(\d{4})\s*([^<]+)</span>'
+        card_pattern = r'<span style="font-weight:bold;font-size:18px">(\d{4})\s*([^<]+)</span>'
         def replace_card(m):
             code = m.group(1)
             name = m.group(2).strip()
             return (
                 f'<span onclick="handleStockClick(\'{code}\')" style="cursor:pointer; display:inline-block; '
                 f'background:#00D4AA20; border:2px solid #00D4AA; border-radius:8px; '
-                f'padding:3px 12px; margin-right:6px; font-weight:bold; font-size:15px; color:#00D4AA; '
+                f'padding:3px 12px; margin-right:6px; font-weight:bold; font-size:18px; color:#00D4AA; '
                 f'box-shadow: 0 2px 5px rgba(0,212,170,0.2); transition: transform 0.1s;" '
                 f'onmouseover="this.style.background=\'#00D4AA40\'" onmouseout="this.style.background=\'#00D4AA20\'" '
                 f'title="點擊前往 {code} {name} 完整深度分析">📊 {code} {name} ↗</span>'

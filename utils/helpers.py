@@ -252,38 +252,70 @@ def save_watchlist(codes):
 
 def get_common_css() -> str:
     """
-    全站響應式行動版與桌機深色樣式
-    針對手機螢幕（寬度 <= 768px）進行深度緊湊化排版優化，消除過度鬆散的空白間距
+    全站響應式行動版與桌機深色樣式（大字體高清晰版）
+    針對手機與電腦全面放大字體，確保長輩與手機閱讀一目了然、毫無壓迫感
     """
     return """
     <style>
+    /* ── 全站基礎字體放大 ── */
+    html, body, [class*="css"], .stMarkdown, p, li, span, div {
+        font-size: 16px;
+    }
     /* ── 全站通用深色系與卡片樣式 ── */
     .metric-card {
-        background: #1C2333; border-radius: 10px; padding: 12px 14px;
-        border-left: 4px solid #00D4AA; margin-bottom: 6px;
+        background: #1C2333; border-radius: 10px; padding: 14px 16px;
+        border-left: 4px solid #00D4AA; margin-bottom: 8px;
+        font-size: 16px;
     }
     .up-text { color: #e53935; font-weight: bold; }
     .down-text { color: #43a047; font-weight: bold; }
-    .rating-buy   { background: linear-gradient(135deg, #d32f2f, #e53935); color:white; padding:8px 18px; border-radius:10px; font-size:20px; font-weight:bold; display:inline-block; box-shadow: 0 4px 10px rgba(229,57,53,0.3); }
-    .rating-watch { background: linear-gradient(135deg, #f57c00, #ff9800); color:white; padding:8px 18px; border-radius:10px; font-size:20px; font-weight:bold; display:inline-block; box-shadow: 0 4px 10px rgba(255,152,0,0.3); }
-    .rating-sell  { background: linear-gradient(135deg, #2e7d32, #43a047); color:white; padding:8px 18px; border-radius:10px; font-size:20px; font-weight:bold; display:inline-block; box-shadow: 0 4px 10px rgba(67,160,71,0.3); }
+    .rating-buy   { background: linear-gradient(135deg, #d32f2f, #e53935); color:white; padding:10px 20px; border-radius:10px; font-size:23px; font-weight:bold; display:inline-block; box-shadow: 0 4px 10px rgba(229,57,53,0.3); }
+    .rating-watch { background: linear-gradient(135deg, #f57c00, #ff9800); color:white; padding:10px 20px; border-radius:10px; font-size:23px; font-weight:bold; display:inline-block; box-shadow: 0 4px 10px rgba(255,152,0,0.3); }
+    .rating-sell  { background: linear-gradient(135deg, #2e7d32, #43a047); color:white; padding:10px 20px; border-radius:10px; font-size:23px; font-weight:bold; display:inline-block; box-shadow: 0 4px 10px rgba(67,160,71,0.3); }
     
-    .market-badge { background:#00D4AA1C; border:1px solid #00D4AA; color:#00D4AA; padding:2px 8px; border-radius:6px; font-size:12px; font-weight:bold; }
-    .sector-badge { background:#38BDF81C; border:1px solid #38BDF8; color:#38BDF8; padding:2px 8px; border-radius:6px; font-size:12px; }
-    .concept-tag  { display:inline-block; background:#1C2333; border:1px solid #FFB30066; color:#FFD54F; padding:2px 10px; border-radius:12px; font-size:11px; margin:2px 4px 2px 0; }
+    .market-badge { background:#00D4AA1C; border:1px solid #00D4AA; color:#00D4AA; padding:3px 10px; border-radius:6px; font-size:15px; font-weight:bold; }
+    .sector-badge { background:#38BDF81C; border:1px solid #38BDF8; color:#38BDF8; padding:3px 10px; border-radius:6px; font-size:15px; font-weight:bold; }
+    .concept-tag  { display:inline-block; background:#1C2333; border:1px solid #FFB30066; color:#FFD54F; padding:4px 12px; border-radius:14px; font-size:14.5px; font-weight:500; margin:3px 5px 3px 0; }
     
-    .info-card    { background:#1C2333; border:1px solid #2A324B; border-radius:8px; padding:10px 14px; margin-bottom:8px; }
-    .price-box    { background:#161C28; border-left:3px solid #00D4AA; border-radius:8px; padding:10px 12px; }
-    .pro-box      { background:#1C2826; border-left:3px solid #e53935; border-radius:8px; padding:10px 12px; margin-bottom:6px; }
-    .con-box      { background:#1E241E; border-left:3px solid #43a047; border-radius:8px; padding:10px 12px; margin-bottom:6px; }
+    .info-card    { background:#1C2333; border:1px solid #2A324B; border-radius:10px; padding:12px 15px; margin-bottom:10px; font-size:16px; line-height:1.65; }
+    .price-box    { background:#161C28; border-left:4px solid #00D4AA; border-radius:8px; padding:10px 12px; font-size:16px; }
+    .pro-box      { background:#1C2826; border-left:4px solid #e53935; border-radius:8px; padding:12px 14px; margin-bottom:8px; font-size:16px; line-height:1.65; }
+    .con-box      { background:#1E241E; border-left:4px solid #43a047; border-radius:8px; padding:12px 14px; margin-bottom:8px; font-size:16px; line-height:1.65; }
 
-    /* ── 橫向滑動晶片區（手機友善極簡設計） ── */
+    /* ── 表單控制項、下拉選單、分頁標籤與表格字體放大 ── */
+    label[data-testid="stWidgetLabel"] p {
+        font-size: 15.5px !important;
+        font-weight: bold !important;
+        color: #E2E8F0 !important;
+    }
+    input[type="text"] {
+        font-size: 17px !important;
+    }
+    div[data-baseweb="select"] * {
+        font-size: 15.5px !important;
+    }
+    button[data-baseweb="tab"] p, button[data-baseweb="tab"] {
+        font-size: 16px !important;
+        font-weight: bold !important;
+    }
+    div[data-testid="stMetricValue"] {
+        font-size: 24px !important;
+    }
+    div[data-testid="stMetricLabel"] p {
+        font-size: 15px !important;
+    }
+    div[data-testid="stExpander"] summary p {
+        font-size: 16px !important;
+        font-weight: bold !important;
+    }
+
+    /* ── 橫向滑動晶片區（手機友善大字版） ── */
     .chips-scroll-bar {
         display: flex;
         overflow-x: auto;
         white-space: nowrap;
-        gap: 6px;
-        padding: 4px 2px 8px 2px;
+        gap: 8px;
+        padding: 5px 2px 9px 2px;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
     }
@@ -295,10 +327,11 @@ def get_common_css() -> str:
         align-items: center;
         background: #1C2333;
         border: 1px solid #2E3A59;
-        border-radius: 16px;
-        padding: 4px 11px;
+        border-radius: 18px;
+        padding: 6px 13px;
         color: #E2E8F0 !important;
-        font-size: 13px;
+        font-size: 15.5px !important;
+        font-weight: 500;
         text-decoration: none !important;
         cursor: pointer;
         flex-shrink: 0;
@@ -312,17 +345,17 @@ def get_common_css() -> str:
     .chip-code {
         color: #00D4AA;
         font-weight: bold;
-        margin-right: 4px;
-        font-size: 12px;
+        margin-right: 5px;
+        font-size: 15px !important;
     }
 
-    /* ── 手機版專屬緊湊佈局 (螢幕寬度 <= 768px) ── */
+    /* ── 手機版專屬佈局與大字體 (螢幕寬度 <= 768px) ── */
     @media (max-width: 768px) {
         .main .block-container {
             padding-top: 0.6rem !important;
-            padding-bottom: 2rem !important;
-            padding-left: 0.5rem !important;
-            padding-right: 0.5rem !important;
+            padding-bottom: 2.2rem !important;
+            padding-left: 0.55rem !important;
+            padding-right: 0.55rem !important;
             max-width: 100% !important;
         }
         header[data-testid="stHeader"] {
@@ -330,40 +363,42 @@ def get_common_css() -> str:
             background: rgba(14, 17, 23, 0.8) !important;
         }
         div[data-testid="stVerticalBlock"] > div {
-            gap: 0.35rem !important;
+            gap: 0.45rem !important;
         }
         h1 {
-            font-size: 1.35rem !important;
-            margin: 0.2rem 0 !important;
-            line-height: 1.25 !important;
+            font-size: 1.55rem !important;
+            margin: 0.25rem 0 !important;
+            line-height: 1.3 !important;
         }
         h2 {
-            font-size: 1.2rem !important;
+            font-size: 1.38rem !important;
             margin: 0.3rem 0 !important;
         }
         h3 {
-            font-size: 1.05rem !important;
+            font-size: 1.25rem !important;
             margin: 0.25rem 0 !important;
         }
         h4, h5, h6 {
-            font-size: 0.95rem !important;
+            font-size: 1.12rem !important;
             margin: 0.2rem 0 !important;
         }
         hr {
-            margin: 0.4rem 0 !important;
+            margin: 0.45rem 0 !important;
         }
         .stButton > button {
-            padding: 0.3rem 0.6rem !important;
-            font-size: 0.85rem !important;
-            min-height: 2rem !important;
+            padding: 0.4rem 0.75rem !important;
+            font-size: 16px !important;
+            font-weight: bold !important;
+            min-height: 2.4rem !important;
             border-radius: 8px !important;
         }
-        button[data-baseweb="tab"] {
-            padding: 5px 8px !important;
-            font-size: 12px !important;
+        button[data-baseweb="tab"], button[data-baseweb="tab"] p {
+            padding: 6px 10px !important;
+            font-size: 15.5px !important;
+            font-weight: bold !important;
         }
         .js-plotly-plot {
-            margin-bottom: 0.2rem !important;
+            margin-bottom: 0.25rem !important;
         }
     }
 
@@ -372,9 +407,9 @@ def get_common_css() -> str:
         display: grid;
         grid-template-columns: repeat(4, 1fr);
         gap: 6px;
-        margin-bottom: 8px;
+        margin-bottom: 10px;
         background: #141923;
-        padding: 5px;
+        padding: 6px;
         border-radius: 10px;
         border: 1px solid #263044;
     }
@@ -382,9 +417,9 @@ def get_common_css() -> str:
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 6px 2px;
+        padding: 8px 4px;
         border-radius: 7px;
-        font-size: 13px;
+        font-size: 15.5px;
         font-weight: bold;
         color: #94A3B8 !important;
         text-decoration: none !important;

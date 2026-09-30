@@ -21,11 +21,20 @@ def _apply_dark_layout(fig):
         paper_bgcolor=BG_COLOR,
         plot_bgcolor=PLOT_BG_COLOR,
         font=dict(size=11, color=FONT_COLOR),
-        margin=dict(l=15, r=15, t=32, b=20),
+        margin=dict(l=10, r=10, t=32, b=18),
+        dragmode=False,
+        hovermode='x unified',
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
-    fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#2A324B')
-    fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#2A324B')
+    fig.update_xaxes(
+        showgrid=True, gridwidth=1, gridcolor='#2A324B',
+        fixedrange=True,
+        showspikes=True, spikemode='across', spikesnap='cursor', spikecolor='#00D4AA', spikethickness=1
+    )
+    fig.update_yaxes(
+        showgrid=True, gridwidth=1, gridcolor='#2A324B',
+        fixedrange=True
+    )
     return fig
 
 

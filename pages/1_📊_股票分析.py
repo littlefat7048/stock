@@ -334,8 +334,67 @@ if search_btn or raw_input:
         "🏭 產業生態與同業"
     ])
 
+    PLOTLY_CFG = {'displayModeBar': False, 'scrollZoom': False}
+
     # ── Tab 1：📊 技術面分析 ───────────────────────────────
     with tab1:
+        # 1. 頂部：免點圖表直接看！「最新交易日完整四價、成交量、均線與技術指標數值看板」
+        last_row = df_price.iloc[-1]
+        open_p  = float(last_row.get('Open', latest_close))
+        high_p  = float(last_row.get('High', latest_close))
+        low_p   = float(last_row.get('Low', latest_close))
+        vol_lot = int(round(float(last_row.get('Volume', 0)) / 1000.0))
+        ma5_v   = float(last_row.get('MA5', 0) or 0)
+        ma10_v  = float(last_row.get('MA10', 0) or 0)
+        ma20_v  = float(last_row.get('MA20', 0) or 0)
+        ma60_v  = float(last_row.get('MA60', 0) or 0)
+        k_v     = float(last_row.get('K', 0) or 0)
+        d_v     = float(last_row.get('D', 0) or 0)
+        dif_v   = float(last_row.get('MACD', 0) or 0)
+        macd_v  = float(last_row.get('Signal', 0) or 0)
+        osc_v   = float(last_row.get('Hist', 0) or 0)
+        rsi_v   = float(last_row.get('RSI', 0) or 0)
+
+        st.markdown(
+            f"<div class='info-card' style='border-left:4px solid #38BDF8; padding:10px 12px; margin-bottom:8px;'>"
+            f"<div style='display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:6px;'>"
+            f"<span style='color:#38BDF8; font-weight:bold; font-size:13.5px;'>📌 最新交易日（{latest_date_str}）詳細數據一覽（免點圖表直接看）</span>"
+            f"<span style='color:#94A3B8; font-size:11px;'>🔒 圖表已鎖定防誤觸滑走，輕點K棒可看單日十字查價</span>"
+            f"</div>"
+            f"<div style='display:grid; grid-template-columns: repeat(auto-fit, minmax(115px, 1fr)); gap:6px; font-size:12.5px;'>"
+            f"<div style='background:#161F30; padding:6px 8px; border-radius:6px;'>"
+            f"<div style='color:#94A3B8; font-size:11px;'>📊 當日四價</div>"
+            f"<div>開 <b>{open_p:,.2f}</b> ｜ 高 <b style='color:#e53935;'>{high_p:,.2f}</b><br>低 <b style='color:#43a047;'>{low_p:,.2f}</b> ｜ 收 <b style='color:{price_color};'>{latest_close:,.2f}</b></div>"
+            f"</div>"
+            f"<div style='background:#161F30; padding:6px 8px; border-radius:6px;'>"
+            f"<div style='color:#94A3B8; font-size:11px;'>📏 均線位置 (MA)</div>"
+            f"<div>5日 <b style='color:#FFD700;'>{ma5_v:,.2f}</b> ｜ 10日 <b style='color:#FF80AB;'>{ma10_v:,.2f}</b><br>20日 <b style='color:#00E5FF;'>{ma20_v:,.2f}</b> ｜ 60日 <b style='color:#FF9100;'>{ma60_v:,.2f}</b></div>"
+            f"</div>"
+            f"<div style='background:#161F30; padding:6px 8px; border-radius:6px;'>"
+            f"<div style='color:#94A3B8; font-size:11px;'>⚡ KD / RSI / 量</div>"
+            f"<div>K <b style='color:#FFD700;'>{k_v:.1f}</b> / D <b style='color:#00E5FF;'>{d_v:.1f}</b> ｜ RSI <b>{rsi_v:.1f}</b><br>成交量：<b>{vol_lot:,} 張</b></div>"
+            f"</div>"
+            f"<div style='background:#161F30; padding:6px 8px; border-radius:6px;'>"
+            f"<div style='color:#94A3B8; font-size:11px;'>🌊 MACD 指標</div>"
+            f"<div>DIF <b style='color:#00E5FF;'>{dif_v:.2f}</b> ｜ MACD <b style='color:#FF80AB;'>{macd_v:.2f}</b><br>柱狀(OSC)：<b style='color:{'#e53935' if osc_v>=0 else '#43a047'};'>{osc_v:+.2f}</b></div>"
+            f"</div>"
+            f"</div>"
+            f"</div>",
+            unsafe_allow_html=True
+        )
+
+        # 2. 外部專業看盤一鍵跳轉列（Yahoo股市 / 玩股網 / Goodinfo / HiStock）
+        st.markdown(
+            f"<div style='display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;'>"
+            f"<span style='color:#94A3B8; font-size:12px;'>🔗 外部專業看盤線圖：</span>"
+            f"<a href='https://tw.stock.yahoo.com/quote/{stock_code}/technical-analysis' target='_blank' class='stock-chip-link' style='font-size:12px; padding:3px 9px;'>📈 Yahoo奇摩技術線圖 ↗</a>"
+            f"<a href='https://www.wantgoo.com/stock/{stock_code}/technical-chart' target='_blank' class='stock-chip-link' style='font-size:12px; padding:3px 9px;'>📊 玩股網動態K線 ↗</a>"
+            f"<a href='https://goodinfo.tw/tw/ShowK_Chart.asp?STOCK_ID={stock_code}&CHT_CAT=DATE' target='_blank' class='stock-chip-link' style='font-size:12px; padding:3px 9px;'>📋 Goodinfo K線圖 ↗</a>"
+            f"<a href='https://histock.tw/stock/{stock_code}/%E6%8A%80%E8%A1%93%E5%88%86%E6%9E%90' target='_blank' class='stock-chip-link' style='font-size:12px; padding:3px 9px;'>📉 HiStock 技術分析 ↗</a>"
+            f"</div>",
+            unsafe_allow_html=True
+        )
+
         col_sig, col_chart = st.columns([1.1, 2.9])
 
         with col_sig:
@@ -360,38 +419,71 @@ if search_btn or raw_input:
                     unsafe_allow_html=True
                 )
 
-            # 各均線目前精確數值
-            last_row = df_price.iloc[-1]
             st.markdown(
                 f"<div class='info-card'>"
                 f"<div style='color:#94A3B8;font-size:12px;margin-bottom:6px;'>📏 各期均線目前位置</div>"
                 f"<div style='font-size:13px;line-height:1.8;'>"
-                f"• 5日線 (週線)：<b>{last_row.get('MA5', 0):,.2f}</b> 元<br>"
-                f"• 10日線 (雙週)：<b>{last_row.get('MA10', 0):,.2f}</b> 元<br>"
-                f"• 20日線 (月線)：<b>{last_row.get('MA20', 0):,.2f}</b> 元<br>"
-                f"• 60日線 (季線)：<b>{last_row.get('MA60', 0):,.2f}</b> 元"
+                f"• 5日線 (週線)：<b>{ma5_v:,.2f}</b> 元<br>"
+                f"• 10日線 (雙週)：<b>{ma10_v:,.2f}</b> 元<br>"
+                f"• 20日線 (月線)：<b>{ma20_v:,.2f}</b> 元<br>"
+                f"• 60日線 (季線)：<b>{ma60_v:,.2f}</b> 元"
                 f"</div></div>",
                 unsafe_allow_html=True
             )
 
         with col_chart:
-            ma_options = st.multiselect(
-                "選擇顯示均線",
-                ['MA5', 'MA10', 'MA20', 'MA60', 'MA120', 'MA240'],
-                default=['MA5', 'MA20', 'MA60']
-            )
+            c_opt1, c_opt2 = st.columns([1.3, 1.7])
+            with c_opt1:
+                k_range_label = st.radio(
+                    "🔍 K 線顯示範圍（取代手勢縮放）",
+                    ["近1月(放大)", "近3月(適中)", "近半年"],
+                    index=1,
+                    horizontal=True
+                )
+            with c_opt2:
+                ma_options = st.multiselect(
+                    "選擇顯示均線",
+                    ['MA5', 'MA10', 'MA20', 'MA60', 'MA120', 'MA240'],
+                    default=['MA5', 'MA20', 'MA60']
+                )
+
+            k_bars = 25 if "近1月" in k_range_label else (65 if "近3月" in k_range_label else 140)
+
             st.plotly_chart(
-                create_candlestick_chart(df_price.tail(150), ma_options),
-                use_container_width=True
+                create_candlestick_chart(df_price.tail(k_bars), ma_options),
+                use_container_width=True,
+                config=PLOTLY_CFG
             )
 
             sub_col1, sub_col2 = st.columns(2)
             with sub_col1:
-                st.plotly_chart(create_macd_chart(df_price.tail(120)), use_container_width=True)
+                st.plotly_chart(create_macd_chart(df_price.tail(k_bars)), use_container_width=True, config=PLOTLY_CFG)
             with sub_col2:
-                st.plotly_chart(create_kd_chart(df_price.tail(120)), use_container_width=True)
+                st.plotly_chart(create_kd_chart(df_price.tail(k_bars)), use_container_width=True, config=PLOTLY_CFG)
 
-            st.plotly_chart(create_rsi_chart(df_price.tail(120)), use_container_width=True)
+            st.plotly_chart(create_rsi_chart(df_price.tail(k_bars)), use_container_width=True, config=PLOTLY_CFG)
+
+            # 近 10 個交易日完整價量與技術指標明細表（不用點圖表也能查每天精確數字！）
+            with st.expander("📋 查看近 10 個交易日每日「開高低收、均線、KD、MACD、RSI」詳細數據表", expanded=True):
+                recent_10 = df_price.tail(10).iloc[::-1].copy()
+                table_rows = []
+                for idx_dt, r_row in recent_10.iterrows():
+                    d_label = idx_dt.strftime('%m/%d') if hasattr(idx_dt, 'strftime') else str(idx_dt)[:10]
+                    table_rows.append({
+                        '日期': d_label,
+                        '收盤': round(float(r_row.get('Close', 0)), 2),
+                        '開盤': round(float(r_row.get('Open', 0)), 2),
+                        '最高': round(float(r_row.get('High', 0)), 2),
+                        '最低': round(float(r_row.get('Low', 0)), 2),
+                        '量(張)': int(round(float(r_row.get('Volume', 0)) / 1000.0)),
+                        '5日線': round(float(r_row.get('MA5', 0) or 0), 2),
+                        '20日線': round(float(r_row.get('MA20', 0) or 0), 2),
+                        'K值': round(float(r_row.get('K', 0) or 0), 1),
+                        'D值': round(float(r_row.get('D', 0) or 0), 1),
+                        'DIF': round(float(r_row.get('MACD', 0) or 0), 2),
+                        'RSI': round(float(r_row.get('RSI', 0) or 0), 1),
+                    })
+                st.dataframe(pd.DataFrame(table_rows), use_container_width=True, hide_index=True)
 
     # ── Tab 2：🏛 籌碼面分析 ───────────────────────────────
     with tab2:
@@ -444,7 +536,7 @@ if search_btn or raw_input:
                 )
 
             # 三大法人買賣超圖表
-            st.plotly_chart(create_institutional_chart(chip_df), use_container_width=True)
+            st.plotly_chart(create_institutional_chart(chip_df), use_container_width=True, config=PLOTLY_CFG)
 
             # 融資融券分析區
             if margin_df is not None and not margin_df.empty:
@@ -470,7 +562,7 @@ if search_btn or raw_input:
                         "券資比 > 30% 易有軋空行情" if chip_summary.get('short_ratio', 0) >= 30 else "正常水位"
                     )
 
-                st.plotly_chart(create_margin_chart(margin_df), use_container_width=True)
+                st.plotly_chart(create_margin_chart(margin_df), use_container_width=True, config=PLOTLY_CFG)
 
             # 近期法人買賣超明細表
             with st.expander("📋 查看近 15 個交易日三大法人買賣超明細表（單位：張）", expanded=True):
@@ -707,7 +799,7 @@ if search_btn or raw_input:
             rm2.metric("營收年增率 (YoY)", f"{latest_m['YoY']:+.2f}%", "正成長" if latest_m['YoY'] >= 0 else "年減")
             rm3.metric("營收月增率 (MoM)", f"{latest_m['MoM']:+.2f}%", "月增" if latest_m['MoM'] >= 0 else "月減")
 
-            st.plotly_chart(create_revenue_chart(rev_df), use_container_width=True)
+            st.plotly_chart(create_revenue_chart(rev_df), use_container_width=True, config=PLOTLY_CFG)
             with st.expander("📄 查看近 12 個月營收完整數據表"):
                 st.dataframe(rev_df.iloc[::-1], use_container_width=True, hide_index=True)
         else:
@@ -726,7 +818,7 @@ if search_btn or raw_input:
             rq3.metric("單季營業利益率", f"{latest_q['營益率(%)']:.2f}%")
             rq4.metric("單季稅後淨利率", f"{latest_q['淨利率(%)']:.2f}%")
 
-            st.plotly_chart(create_eps_chart(eps_df), use_container_width=True)
+            st.plotly_chart(create_eps_chart(eps_df), use_container_width=True, config=PLOTLY_CFG)
             with st.expander("📄 查看近 8 季損益與三率完整數據表"):
                 st.dataframe(eps_df.iloc[::-1], use_container_width=True, hide_index=True)
         else:

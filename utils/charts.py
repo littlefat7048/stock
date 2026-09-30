@@ -13,6 +13,7 @@ FONT_COLOR = '#FAFAFA'
 PRIMARY_COLOR = '#00D4AA'
 UP_COLOR = '#e53935'
 DOWN_COLOR = '#43a047'
+GRID_COLOR = '#2A324B'
 
 
 def _apply_dark_layout(fig):

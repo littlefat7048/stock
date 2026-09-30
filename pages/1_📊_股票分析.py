@@ -336,9 +336,9 @@ if search_btn or raw_input:
     ])
 
     PLOTLY_CFG = {
-        'displayModeBar': True,
-        'modeBarButtonsToRemove': ['select2d', 'lasso2d', 'toImage', 'autoScale2d'],
+        'displayModeBar': False,
         'scrollZoom': True,
+        'doubleClick': 'reset',
         'displaylogo': False
     }
 
@@ -355,7 +355,7 @@ if search_btn or raw_input:
         "當<b>白色實線向上穿過白色虛線</b>，代表近期法人買盤比過去兩個月都還要強！</li>"
         "<li><b>🟩 中間零軸上的「亮綠 / 橄欖黃小方塊」</b>："
         "只要看到中間 `0.0%` 虛線上出現<b>一排綠色或黃色小方塊</b>，就代表目前正處於<b>「短線買盤 ＞ 長線基準」的法人偏多吸籌期</b>！</li>"
-        "<li><b>🔍 想要放大看最近幾天？</b>您可以直接點選上方的<b>「近2週(極大) / 近1月(放大)」</b>按鈕，或用手指在圖表上<b>「雙指左右張開放大、單指左右滑動」</b>（連點兩下圖表或點右上角 🏠 即可還原）！</li>"
+        "<li><b>🔍 想要放大看最近幾天？</b>您可以直接點選上方的<b>「近2週(極大) / 近1月(放大)」</b>按鈕，或用手指在圖表上<b>「雙指左右張開放大、單指左右滑動」</b>（在圖表上<b>連點兩下</b>即可一鍵還原）！</li>"
         "</ul></div>"
     )
 
@@ -382,7 +382,7 @@ if search_btn or raw_input:
             f"<div class='info-card' style='border-left:4px solid #38BDF8; padding:10px 12px; margin-bottom:8px;'>"
             f"<div style='display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:6px;'>"
             f"<span style='color:#38BDF8; font-weight:bold; font-size:18.5px;'>📌 最新交易日（{latest_date_str}）詳細數據一覽（免點圖表直接看）</span>"
-            f"<span style='color:#94A3B8; font-size:16.5px;'>🔍 圖表支援「雙指左右放大、單指左右平移」，連點兩下或按右上角 🏠 還原</span>"
+            f"<span style='color:#94A3B8; font-size:16.5px;'>🔍 圖表支援「雙指左右放大、單指左右平移、連點兩下還原」</span>"
             f"</div>"
             f"<div style='display:grid; grid-template-columns: repeat(auto-fit, minmax(115px, 1fr)); gap:6px; font-size:17.5px;'>"
             f"<div style='background:#161F30; padding:6px 8px; border-radius:6px;'>"

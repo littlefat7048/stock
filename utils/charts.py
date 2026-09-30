@@ -1,5 +1,5 @@
 """
-台股互動式圖表繪製模組 (Plotly 深色主題・手機防遮擋大字版)
+台股互動式圖表繪製模組 (Plotly 深色主題・手機零遮擋超大字版)
 台股慣例：紅漲 (#e53935)、綠跌 (#43a047)
 """
 import plotly.graph_objects as go
@@ -16,23 +16,18 @@ DOWN_COLOR = '#43a047'
 GRID_COLOR = '#2A324B'
 
 
-def _apply_dark_layout(fig, bottom_margin=88, top_margin=52, legend_y=-0.22):
+def _apply_dark_layout(fig, bottom_margin=100, top_margin=54, legend_y=-0.24, is_date_x=True):
     """
     統一深色主題佈局：
-    - 標題固定於最上方 (top)，圖例固定於最下方 (bottom)，徹底根絕手機版「標題與圖例重疊遮字」！
-    - 開啟橫向雙指縮放與平移 (xaxis fixedrange=False, dragmode='pan')，並鎖定縱軸 (yaxis fixedrange=True) 防止上下滑動跑掉！
-    - 改用單點精簡提示 (hovermode='closest')，避免手機滑動時跳出巨大黑框遮住整張圖表！
+    1. 隱藏右上角懸浮工具列 (displayModeBar=False)，避免遮住右上角標題與K線（雙指縮放與連點還原仍完全保留）。
+    2. 日期橫軸統一改為單行『MM/DD』(例如 09/06、09/20)，消除原本兩行英文『Sep 6 \\n 2026』向下撞到圖例的問題！
+    3. 加大底部留白與圖例距離 (legend_y)，確保圖例在任何螢幕高度下都絕不與橫軸文字重疊。
     """
-    fig.update_layout(
+    layout_kwargs = dict(
         template='plotly_dark',
         paper_bgcolor=BG_COLOR,
         plot_bgcolor=PLOT_BG_COLOR,
         font=dict(size=14.5, color=FONT_COLOR),
-        title=dict(
-            y=0.97, x=0.01,
-            xanchor='left', yanchor='top',
-            font=dict(size=16.5, color='#FFD54F')
-        ),
         margin=dict(l=10, r=14, t=top_margin, b=bottom_margin),
         dragmode='pan',
         hovermode='closest',
@@ -51,29 +46,41 @@ def _apply_dark_layout(fig, bottom_margin=88, top_margin=52, legend_y=-0.22):
             font=dict(size=13.5, color='#E2E8F0')
         )
     )
-    fig.update_xaxes(
+    if fig.layout.title and fig.layout.title.text:
+        layout_kwargs['title'] = dict(
+            text=fig.layout.title.text,
+            y=0.96, x=0.01,
+            xanchor='left', yanchor='top',
+            font=dict(size=16.5, color='#FFD54F')
+        )
+    fig.update_layout(**layout_kwargs)
+    xaxis_kwargs = dict(
         showgrid=True, gridwidth=1, gridcolor=GRID_COLOR,
         fixedrange=False,
         tickfont=dict(size=13),
         automargin=True
     )
+    if is_date_x:
+        xaxis_kwargs['tickformat'] = '%m/%d'
+
+    fig.update_xaxes(**xaxis_kwargs)
     fig.update_yaxes(
         showgrid=True, gridwidth=1, gridcolor=GRID_COLOR,
         fixedrange=True,
         tickfont=dict(size=13),
         automargin=True
     )
-    # 放大子圖標題 (subplot_titles)
+    # 子圖標題 (subplot_titles) 靠左對齊並放大，避免置中偏右被擋
     if fig.layout.annotations:
         for ann in fig.layout.annotations:
-            ann.font = dict(size=15.5, color='#FFD54F')
+            ann.font = dict(size=16, color='#FFD54F')
     return fig
 
 
 def create_candlestick_chart(df, selected_mas=['MA5', 'MA20', 'MA60']):
     fig = make_subplots(
         rows=2, cols=1, shared_xaxes=True,
-        vertical_spacing=0.07,
+        vertical_spacing=0.10,
         subplot_titles=('股價 K 線與均線走勢（紅漲綠跌）', '成交量（股）'),
         row_width=[0.26, 0.74]
     )
@@ -99,7 +106,7 @@ def create_candlestick_chart(df, selected_mas=['MA5', 'MA20', 'MA60']):
                 x=df.index, y=df[ma],
                 line=dict(color=ma_colors.get(ma, '#FFFFFF'), width=1.8),
                 name=ma,
-                hovertemplate=f"{ma}: <b>%{{y:.2f}}</b><extra></extra>"
+                hovertemplate=f"%{{x|%m/%d}}｜{ma}: <b>%{{y:.2f}}</b><extra></extra>"
             ), row=1, col=1)
 
     volume_colors = [UP_COLOR if row['Close'] >= row['Open'] else DOWN_COLOR for _, row in df.iterrows()]
@@ -107,11 +114,11 @@ def create_candlestick_chart(df, selected_mas=['MA5', 'MA20', 'MA60']):
         x=df.index, y=df['Volume'],
         marker_color=volume_colors,
         name='成交量',
-        hovertemplate="量: <b>%{y:,.0f} 股</b><extra></extra>"
+        hovertemplate="%{x|%m/%d}｜量: <b>%{y:,.0f} 股</b><extra></extra>"
     ), row=2, col=1)
 
-    fig.update_layout(xaxis_rangeslider_visible=False, height=580)
-    return _apply_dark_layout(fig, bottom_margin=82, top_margin=38, legend_y=-0.13)
+    fig.update_layout(xaxis_rangeslider_visible=False, height=620)
+    return _apply_dark_layout(fig, bottom_margin=96, top_margin=44, legend_y=-0.16, is_date_x=True)
 
 
 def create_macd_chart(df):
@@ -120,18 +127,18 @@ def create_macd_chart(df):
         colors = [UP_COLOR if h >= 0 else DOWN_COLOR for h in df['Hist']]
         fig.add_trace(go.Bar(
             x=df.index, y=df['Hist'], marker_color=colors, name='柱狀(OSC)',
-            hovertemplate="%{x}<br>柱狀(OSC): <b>%{y:+.2f}</b><extra></extra>"
+            hovertemplate="%{x|%m/%d}｜柱狀(OSC): <b>%{y:+.2f}</b><extra></extra>"
         ))
         fig.add_trace(go.Scatter(
             x=df.index, y=df['MACD'], line=dict(color='#00E5FF', width=2.0), name='DIF快線',
-            hovertemplate="%{x}<br>DIF: <b>%{y:.2f}</b><extra></extra>"
+            hovertemplate="%{x|%m/%d}｜DIF: <b>%{y:.2f}</b><extra></extra>"
         ))
         fig.add_trace(go.Scatter(
             x=df.index, y=df['Signal'], line=dict(color='#FF80AB', width=2.0), name='MACD慢線',
-            hovertemplate="%{x}<br>MACD: <b>%{y:.2f}</b><extra></extra>"
+            hovertemplate="%{x|%m/%d}｜MACD: <b>%{y:.2f}</b><extra></extra>"
         ))
-    fig.update_layout(height=320, title_text='MACD 動能指標')
-    return _apply_dark_layout(fig, bottom_margin=80, top_margin=48, legend_y=-0.24)
+    fig.update_layout(height=350, title_text='MACD 動能指標')
+    return _apply_dark_layout(fig, bottom_margin=98, top_margin=50, legend_y=-0.28, is_date_x=True)
 
 
 def create_kd_chart(df):
@@ -139,16 +146,16 @@ def create_kd_chart(df):
     if 'K' in df.columns and 'D' in df.columns:
         fig.add_trace(go.Scatter(
             x=df.index, y=df['K'], line=dict(color='#FFD700', width=2.0), name='K值(快線)',
-            hovertemplate="%{x}<br>K值: <b>%{y:.1f}</b><extra></extra>"
+            hovertemplate="%{x|%m/%d}｜K值: <b>%{y:.1f}</b><extra></extra>"
         ))
         fig.add_trace(go.Scatter(
             x=df.index, y=df['D'], line=dict(color='#00E5FF', width=2.0), name='D值(慢線)',
-            hovertemplate="%{x}<br>D值: <b>%{y:.1f}</b><extra></extra>"
+            hovertemplate="%{x|%m/%d}｜D值: <b>%{y:.1f}</b><extra></extra>"
         ))
         fig.add_hline(y=80, line_dash="dash", line_color=UP_COLOR)
         fig.add_hline(y=20, line_dash="dash", line_color=DOWN_COLOR)
-    fig.update_layout(height=320, title_text='KD 隨機指標（80超買 / 20超賣）')
-    return _apply_dark_layout(fig, bottom_margin=80, top_margin=48, legend_y=-0.24)
+    fig.update_layout(height=350, title_text='KD 隨機指標（80超買 / 20超賣）')
+    return _apply_dark_layout(fig, bottom_margin=98, top_margin=50, legend_y=-0.28, is_date_x=True)
 
 
 def create_rsi_chart(df):
@@ -156,13 +163,13 @@ def create_rsi_chart(df):
     if 'RSI' in df.columns:
         fig.add_trace(go.Scatter(
             x=df.index, y=df['RSI'], line=dict(color=PRIMARY_COLOR, width=2.2), name='RSI(14)',
-            hovertemplate="%{x}<br>RSI: <b>%{y:.1f}</b><extra></extra>"
+            hovertemplate="%{x|%m/%d}｜RSI: <b>%{y:.1f}</b><extra></extra>"
         ))
         fig.add_hline(y=70, line_dash="dash", line_color=UP_COLOR)
         fig.add_hline(y=50, line_dash="dot", line_color="#888888")
         fig.add_hline(y=30, line_dash="dash", line_color=DOWN_COLOR)
-    fig.update_layout(height=320, title_text='RSI 相對強弱指標（70超買 / 30超賣）')
-    return _apply_dark_layout(fig, bottom_margin=80, top_margin=48, legend_y=-0.24)
+    fig.update_layout(height=350, title_text='RSI 相對強弱指標（70超買 / 30超賣）')
+    return _apply_dark_layout(fig, bottom_margin=98, top_margin=50, legend_y=-0.28, is_date_x=True)
 
 
 def create_institutional_chart(data, days=25):
@@ -181,7 +188,7 @@ def create_institutional_chart(data, days=25):
             fig.add_trace(go.Bar(
                 x=data.index, y=data[col],
                 name=col, marker_color=color,
-                hovertemplate=f"%{{x}}<br>{col}: <b>%{{y:+,.0f}} 張</b><extra></extra>"
+                hovertemplate=f"%{{x|%m/%d}}｜{col}: <b>%{{y:+,.0f}} 張</b><extra></extra>"
             ))
 
     if '三大法人合計' in data.columns:
@@ -190,20 +197,19 @@ def create_institutional_chart(data, days=25):
             mode='lines+markers',
             line=dict(color='#FF5252', width=2.2),
             name='合計(張)',
-            hovertemplate="%{x}<br>三大法人合計: <b>%{y:+,.0f} 張</b><extra></extra>"
+            hovertemplate="%{x|%m/%d}｜三大法人合計: <b>%{y:+,.0f} 張</b><extra></extra>"
         ))
 
     fig.add_hline(y=0, line_color='#FFFFFF', line_width=1)
-    fig.update_layout(barmode='relative', height=410, title_text='三大法人每日買賣超明細（單位：張）')
-    return _apply_dark_layout(fig, bottom_margin=86, top_margin=50, legend_y=-0.22)
+    fig.update_layout(barmode='relative', height=430, title_text='三大法人每日買賣超明細（單位：張）')
+    return _apply_dark_layout(fig, bottom_margin=102, top_margin=52, legend_y=-0.25, is_date_x=True)
 
 
 def create_mofi_institutional_force_chart(mofi_df, investor_type='三大法人', denom_mode='佔股本比', sensitivity=2.0):
     """
     繪製仿 @MOFI「法人力度 (2026 版)」專業副圖：
     - 縱軸直接顯示百分比 (%)（例如 +2.0% 代表單日買超佔總股本 2%），直覺好懂！
-    - 標題置頂、圖例置底，絕不重疊遮字！
-    - 支援橫向雙指放大看近期細節！
+    - 橫軸日期單行顯示 (MM/DD)，圖例與橫軸留有充足間距，絕不重疊遮字！
     """
     fig = go.Figure()
     if mofi_df is None or mofi_df.empty or 'Force_Pct' not in mofi_df.columns:
@@ -226,10 +232,10 @@ def create_mofi_institutional_force_chart(mofi_df, investor_type='三大法人',
         x=mofi_df.index,
         y=mofi_df['Force_Pct'],
         marker_color=bar_colors,
-        name=f'{investor_type}力度(%)',
+        name=f'{investor_type}(%)',
         customdata=mofi_df[['Target_Lots', 'Force_Pct', 'Z_Score']],
         hovertemplate=(
-            "<b>%{x}</b>｜"
+            "<b>%{x|%m/%d}</b>｜"
             f"{investor_type} <b>%{{customdata[0]:+,.0f}}張</b><br>"
             f"{denom_mode} <b>%{{customdata[1]:+.2f}}%</b> (Z=<b>%{{customdata[2]:+.2f}}σ</b>)<extra></extra>"
         )
@@ -242,7 +248,7 @@ def create_mofi_institutional_force_chart(mofi_df, investor_type='三大法人',
             y=mofi_df['Slow_MA'] * 100.0,
             mode='lines',
             line=dict(color='#CBD5E1', width=1.6, dash='dash'),
-            name='長期基準(40MA)',
+            name='40MA基準',
             hoverinfo='skip'
         ))
 
@@ -253,7 +259,7 @@ def create_mofi_institutional_force_chart(mofi_df, investor_type='三大法人',
             y=mofi_df['Fast_MA'] * 100.0,
             mode='lines',
             line=dict(color='#FFFFFF', width=2.4),
-            name='近期動向(10MA)',
+            name='10MA動向',
             hoverinfo='skip'
         ))
 
@@ -266,7 +272,7 @@ def create_mofi_institutional_force_chart(mofi_df, investor_type='三大法人',
             y=[0.0] * len(bull_turn_df),
             mode='markers',
             marker=dict(symbol='square', size=7, color='#9E9D24'),
-            name='動向翻多',
+            name='翻多',
             hoverinfo='skip'
         ))
     if not bull_strong_df.empty:
@@ -275,7 +281,7 @@ def create_mofi_institutional_force_chart(mofi_df, investor_type='三大法人',
             y=[0.0] * len(bull_strong_df),
             mode='markers',
             marker=dict(symbol='square', size=7, color='#00C853'),
-            name='買方強勢',
+            name='買強',
             hoverinfo='skip'
         ))
 
@@ -292,10 +298,10 @@ def create_mofi_institutional_force_chart(mofi_df, investor_type='三大法人',
                 color='#FFEA00',
                 line=dict(color='#FFF9C4', width=2)
             ),
-            name=f'🟡顯著買超(Z≧{sensitivity}σ)',
+            name='顯著買超',
             customdata=eb_df[['Target_Lots', 'Force_Pct', 'Z_Score']],
             hovertemplate=(
-                "🟡 <b>%{x} 顯著買超！</b><br>"
+                "🟡 <b>%{x|%m/%d} 顯著買超！</b><br>"
                 "買超 <b>%{customdata[0]:+,.0f}張</b>｜"
                 f"{denom_mode} <b>%{{customdata[1]:+.2f}}%</b> (<b>%{{customdata[2]:+.2f}}σ</b>)<extra></extra>"
             )
@@ -303,8 +309,8 @@ def create_mofi_institutional_force_chart(mofi_df, investor_type='三大法人',
 
     fig.add_hline(y=0, line_color='#64748B', line_width=1, line_dash='dot')
     title_str = f"法人力度 (2026 版)｜{investor_type} × {denom_mode}{sub_label}"
-    fig.update_layout(height=395, title_text=title_str)
-    fig = _apply_dark_layout(fig, bottom_margin=96, top_margin=50, legend_y=-0.22)
+    fig.update_layout(height=410, title_text=title_str)
+    fig = _apply_dark_layout(fig, bottom_margin=100, top_margin=52, legend_y=-0.22, is_date_x=True)
     fig.update_layout(
         yaxis=dict(side='right', ticksuffix='%', fixedrange=True, gridcolor=GRID_COLOR, tickfont=dict(size=13)),
         plot_bgcolor='#080B10',
@@ -323,18 +329,18 @@ def create_margin_chart(data):
                 name='融資餘額(左軸:張)',
                 line=dict(color='#FF80AB', width=2.4),
                 fill='tozeroy', fillcolor='rgba(255,128,171,0.1)',
-                hovertemplate="%{x}<br>融資餘額: <b>%{y:,.0f} 張</b><extra></extra>"
+                hovertemplate="%{x|%m/%d}｜融資餘額: <b>%{y:,.0f} 張</b><extra></extra>"
             ), secondary_y=False)
         if 'MarginShort' in data.columns:
             fig.add_trace(go.Scatter(
                 x=data.index, y=data['MarginShort'],
                 name='融券餘額(右軸:張)',
                 line=dict(color='#00E5FF', width=2.4),
-                hovertemplate="%{x}<br>融券餘額: <b>%{y:,.0f} 張</b><extra></extra>"
+                hovertemplate="%{x|%m/%d}｜融券餘額: <b>%{y:,.0f} 張</b><extra></extra>"
             ), secondary_y=True)
 
-    fig.update_layout(height=400, title_text='融資與融券餘額趨勢（單位：張）')
-    return _apply_dark_layout(fig, bottom_margin=86, top_margin=50, legend_y=-0.22)
+    fig.update_layout(height=420, title_text='融資與融券餘額趨勢（單位：張）')
+    return _apply_dark_layout(fig, bottom_margin=102, top_margin=52, legend_y=-0.25, is_date_x=True)
 
 
 def create_eps_chart(quarterly_df):
@@ -366,15 +372,14 @@ def create_eps_chart(quarterly_df):
     fig.update_xaxes(tickangle=-25, tickfont=dict(size=13.5))
     fig.update_yaxes(secondary_y=False, tickfont=dict(size=13))
     fig.update_yaxes(secondary_y=True, ticksuffix="%", tickfont=dict(size=13))
-    fig.update_layout(height=430, title_text='季度 EPS(柱) 與 獲利三率(線) 走勢')
-    return _apply_dark_layout(fig, bottom_margin=94, top_margin=52, legend_y=-0.22)
+    fig.update_layout(height=440, title_text='季度 EPS(柱) 與 獲利三率(線) 走勢')
+    return _apply_dark_layout(fig, bottom_margin=106, top_margin=52, legend_y=-0.26, is_date_x=False)
 
 
 def create_revenue_chart(monthly_revenue):
     """月營收與年增率 YoY 走勢圖（防遮字與防X軸截斷優化版）"""
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     if monthly_revenue is not None and not monthly_revenue.empty:
-        # 將 '2025/09' 簡化為 '25/09' 避免手機版 X 軸過擠被截斷
         short_months = [str(m)[2:] if len(str(m)) >= 7 and str(m).startswith('20') else str(m) for m in monthly_revenue['Month']]
         fig.add_trace(go.Bar(
             x=short_months, y=monthly_revenue['Revenue'],
@@ -404,5 +409,5 @@ def create_revenue_chart(monthly_revenue):
     fig.update_xaxes(tickangle=-35, tickfont=dict(size=13))
     fig.update_yaxes(secondary_y=False, tickfont=dict(size=13))
     fig.update_yaxes(secondary_y=True, ticksuffix="%", tickfont=dict(size=13))
-    fig.update_layout(height=430, title_text='近 12 個月營收(柱) 與 年增率 YoY(線)')
-    return _apply_dark_layout(fig, bottom_margin=96, top_margin=52, legend_y=-0.24)
+    fig.update_layout(height=440, title_text='近 12 個月營收(柱) 與 年增率 YoY(線)')
+    return _apply_dark_layout(fig, bottom_margin=106, top_margin=52, legend_y=-0.27, is_date_x=False)

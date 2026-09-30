@@ -419,6 +419,9 @@ def get_common_css() -> str:
             margin-bottom: 0.35rem !important;
         }
     }
+    .modebar, .modebar-container, button[title="View fullscreen"], [data-testid="StyledFullScreenButton"] {
+        display: none !important;
+    }
 
     /* ── 頂部 4 大功能快速導覽列（手機/電腦皆固定單行並排） ── */
     .top-nav-bar {

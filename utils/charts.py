@@ -344,10 +344,6 @@ def create_eps_chart(quarterly_df):
         fig.add_trace(go.Bar(
             x=quarterly_df['Quarter'], y=quarterly_df['EPS'],
             marker_color=colors, name='單季EPS(元)',
-            text=[f"{v:.2f}" for v in quarterly_df['EPS']],
-            textposition='inside',
-            insidetextanchor='middle',
-            textfont=dict(size=13.5, color='#FFFFFF'),
             hovertemplate="<b>%{x}</b>｜單季EPS: <b>%{y:.2f} 元</b><extra></extra>"
         ), secondary_y=False)
 

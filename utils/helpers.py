@@ -252,70 +252,84 @@ def save_watchlist(codes):
 
 def get_common_css() -> str:
     """
-    全站響應式行動版與桌機深色樣式（大字體高清晰版）
-    針對手機與電腦全面放大字體，確保長輩與手機閱讀一目了然、毫無壓迫感
+    全站響應式行動版與桌機深色樣式（超大字體・防遮擋高清晰版）
+    1. 全面放大字體（內文 18px、次要 16px、標題 22~28px、大數字 26~34px）
+    2. 頂部工具列改為不透明實心黑底並預留安全上邊距，防止滑動時遮蓋上方文字
     """
     return """
     <style>
-    /* ── 全站基礎字體放大 ── */
+    /* ── 全站基礎字體再放大 ── */
     html, body, [class*="css"], .stMarkdown, p, li, span, div {
-        font-size: 16px;
+        font-size: 18px;
+    }
+    /* ── 頂部工具列不透明實心背景（防止 >> Share ☆ 遮蓋下方文字） ── */
+    header[data-testid="stHeader"] {
+        background: #0E1117 !important;
+        border-bottom: 1px solid #1E293B !important;
+        z-index: 999 !important;
     }
     /* ── 全站通用深色系與卡片樣式 ── */
     .metric-card {
-        background: #1C2333; border-radius: 10px; padding: 14px 16px;
-        border-left: 4px solid #00D4AA; margin-bottom: 8px;
-        font-size: 16px;
+        background: #1C2333; border-radius: 10px; padding: 15px 17px;
+        border-left: 4px solid #00D4AA; margin-bottom: 10px;
+        font-size: 18px;
     }
     .up-text { color: #e53935; font-weight: bold; }
     .down-text { color: #43a047; font-weight: bold; }
-    .rating-buy   { background: linear-gradient(135deg, #d32f2f, #e53935); color:white; padding:10px 20px; border-radius:10px; font-size:23px; font-weight:bold; display:inline-block; box-shadow: 0 4px 10px rgba(229,57,53,0.3); }
-    .rating-watch { background: linear-gradient(135deg, #f57c00, #ff9800); color:white; padding:10px 20px; border-radius:10px; font-size:23px; font-weight:bold; display:inline-block; box-shadow: 0 4px 10px rgba(255,152,0,0.3); }
-    .rating-sell  { background: linear-gradient(135deg, #2e7d32, #43a047); color:white; padding:10px 20px; border-radius:10px; font-size:23px; font-weight:bold; display:inline-block; box-shadow: 0 4px 10px rgba(67,160,71,0.3); }
+    .rating-buy   { background: linear-gradient(135deg, #d32f2f, #e53935); color:white; padding:10px 22px; border-radius:10px; font-size:25px; font-weight:bold; display:inline-block; box-shadow: 0 4px 10px rgba(229,57,53,0.3); }
+    .rating-watch { background: linear-gradient(135deg, #f57c00, #ff9800); color:white; padding:10px 22px; border-radius:10px; font-size:25px; font-weight:bold; display:inline-block; box-shadow: 0 4px 10px rgba(255,152,0,0.3); }
+    .rating-sell  { background: linear-gradient(135deg, #2e7d32, #43a047); color:white; padding:10px 22px; border-radius:10px; font-size:25px; font-weight:bold; display:inline-block; box-shadow: 0 4px 10px rgba(67,160,71,0.3); }
     
-    .market-badge { background:#00D4AA1C; border:1px solid #00D4AA; color:#00D4AA; padding:3px 10px; border-radius:6px; font-size:15px; font-weight:bold; }
-    .sector-badge { background:#38BDF81C; border:1px solid #38BDF8; color:#38BDF8; padding:3px 10px; border-radius:6px; font-size:15px; font-weight:bold; }
-    .concept-tag  { display:inline-block; background:#1C2333; border:1px solid #FFB30066; color:#FFD54F; padding:4px 12px; border-radius:14px; font-size:14.5px; font-weight:500; margin:3px 5px 3px 0; }
+    .market-badge { background:#00D4AA1C; border:1px solid #00D4AA; color:#00D4AA; padding:4px 11px; border-radius:6px; font-size:16.5px; font-weight:bold; }
+    .sector-badge { background:#38BDF81C; border:1px solid #38BDF8; color:#38BDF8; padding:4px 11px; border-radius:6px; font-size:16.5px; font-weight:bold; }
+    .concept-tag  { display:inline-block; background:#1C2333; border:1px solid #FFB30066; color:#FFD54F; padding:5px 13px; border-radius:14px; font-size:16px; font-weight:600; margin:3px 5px 3px 0; }
     
-    .info-card    { background:#1C2333; border:1px solid #2A324B; border-radius:10px; padding:12px 15px; margin-bottom:10px; font-size:16px; line-height:1.65; }
-    .price-box    { background:#161C28; border-left:4px solid #00D4AA; border-radius:8px; padding:10px 12px; font-size:16px; }
-    .pro-box      { background:#1C2826; border-left:4px solid #e53935; border-radius:8px; padding:12px 14px; margin-bottom:8px; font-size:16px; line-height:1.65; }
-    .con-box      { background:#1E241E; border-left:4px solid #43a047; border-radius:8px; padding:12px 14px; margin-bottom:8px; font-size:16px; line-height:1.65; }
+    .info-card    { background:#1C2333; border:1px solid #2A324B; border-radius:10px; padding:14px 16px; margin-bottom:10px; font-size:18px; line-height:1.7; }
+    .price-box    { background:#161C28; border-left:4px solid #00D4AA; border-radius:8px; padding:12px 12px; font-size:18px; }
+    .pro-box      { background:#1C2826; border-left:4px solid #e53935; border-radius:8px; padding:14px 16px; margin-bottom:10px; font-size:18px; line-height:1.7; }
+    .con-box      { background:#1E241E; border-left:4px solid #43a047; border-radius:8px; padding:14px 16px; margin-bottom:10px; font-size:18px; line-height:1.7; }
 
-    /* ── 表單控制項、下拉選單、分頁標籤與表格字體放大 ── */
+    /* ── 表單控制項、下拉選單、分頁標籤與表格字體再放大 ── */
     label[data-testid="stWidgetLabel"] p {
-        font-size: 15.5px !important;
+        font-size: 17.5px !important;
         font-weight: bold !important;
-        color: #E2E8F0 !important;
+        color: #F8FAFC !important;
+        line-height: 1.45 !important;
     }
     input[type="text"] {
-        font-size: 17px !important;
+        font-size: 18.5px !important;
     }
     div[data-baseweb="select"] * {
-        font-size: 15.5px !important;
+        font-size: 17.5px !important;
     }
     button[data-baseweb="tab"] p, button[data-baseweb="tab"] {
-        font-size: 16px !important;
+        font-size: 17.5px !important;
         font-weight: bold !important;
     }
     div[data-testid="stMetricValue"] {
-        font-size: 24px !important;
+        font-size: 27px !important;
+        font-weight: bold !important;
     }
     div[data-testid="stMetricLabel"] p {
-        font-size: 15px !important;
+        font-size: 17px !important;
+        font-weight: bold !important;
+        color: #CBD5E1 !important;
+    }
+    div[data-testid="stMetricDelta"] div {
+        font-size: 15.5px !important;
     }
     div[data-testid="stExpander"] summary p {
-        font-size: 16px !important;
+        font-size: 17.5px !important;
         font-weight: bold !important;
     }
 
-    /* ── 橫向滑動晶片區（手機友善大字版） ── */
+    /* ── 橫向滑動晶片區（手機友善超大字版） ── */
     .chips-scroll-bar {
         display: flex;
         overflow-x: auto;
         white-space: nowrap;
         gap: 8px;
-        padding: 5px 2px 9px 2px;
+        padding: 6px 2px 10px 2px;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
     }
@@ -328,10 +342,10 @@ def get_common_css() -> str:
         background: #1C2333;
         border: 1px solid #2E3A59;
         border-radius: 18px;
-        padding: 6px 13px;
+        padding: 7px 14px;
         color: #E2E8F0 !important;
-        font-size: 15.5px !important;
-        font-weight: 500;
+        font-size: 17px !important;
+        font-weight: 600;
         text-decoration: none !important;
         cursor: pointer;
         flex-shrink: 0;
@@ -346,59 +360,63 @@ def get_common_css() -> str:
         color: #00D4AA;
         font-weight: bold;
         margin-right: 5px;
-        font-size: 15px !important;
+        font-size: 16.5px !important;
     }
 
-    /* ── 手機版專屬佈局與大字體 (螢幕寬度 <= 768px) ── */
+    /* ── 手機版專屬佈局與超大字體 (螢幕寬度 <= 768px) ── */
     @media (max-width: 768px) {
         .main .block-container {
-            padding-top: 0.6rem !important;
-            padding-bottom: 2.2rem !important;
-            padding-left: 0.55rem !important;
-            padding-right: 0.55rem !important;
+            padding-top: 2.8rem !important;
+            padding-bottom: 2.5rem !important;
+            padding-left: 0.6rem !important;
+            padding-right: 0.6rem !important;
             max-width: 100% !important;
         }
         header[data-testid="stHeader"] {
-            height: 2.2rem !important;
-            background: rgba(14, 17, 23, 0.8) !important;
+            height: 2.5rem !important;
+            background: #0E1117 !important;
+            border-bottom: 1px solid #1E293B !important;
         }
         div[data-testid="stVerticalBlock"] > div {
-            gap: 0.45rem !important;
+            gap: 0.5rem !important;
         }
         h1 {
-            font-size: 1.55rem !important;
-            margin: 0.25rem 0 !important;
-            line-height: 1.3 !important;
+            font-size: 1.7rem !important;
+            margin: 0.3rem 0 !important;
+            line-height: 1.35 !important;
         }
         h2 {
-            font-size: 1.38rem !important;
-            margin: 0.3rem 0 !important;
+            font-size: 1.5rem !important;
+            margin: 0.35rem 0 !important;
+            line-height: 1.35 !important;
         }
         h3 {
-            font-size: 1.25rem !important;
-            margin: 0.25rem 0 !important;
+            font-size: 1.35rem !important;
+            margin: 0.3rem 0 !important;
+            line-height: 1.35 !important;
         }
         h4, h5, h6 {
-            font-size: 1.12rem !important;
-            margin: 0.2rem 0 !important;
+            font-size: 1.2rem !important;
+            margin: 0.25rem 0 !important;
+            line-height: 1.35 !important;
         }
         hr {
-            margin: 0.45rem 0 !important;
+            margin: 0.5rem 0 !important;
         }
         .stButton > button {
-            padding: 0.4rem 0.75rem !important;
-            font-size: 16px !important;
+            padding: 0.45rem 0.85rem !important;
+            font-size: 17.5px !important;
             font-weight: bold !important;
-            min-height: 2.4rem !important;
+            min-height: 2.6rem !important;
             border-radius: 8px !important;
         }
         button[data-baseweb="tab"], button[data-baseweb="tab"] p {
-            padding: 6px 10px !important;
-            font-size: 15.5px !important;
+            padding: 7px 11px !important;
+            font-size: 17px !important;
             font-weight: bold !important;
         }
         .js-plotly-plot {
-            margin-bottom: 0.25rem !important;
+            margin-bottom: 0.35rem !important;
         }
     }
 
@@ -417,9 +435,9 @@ def get_common_css() -> str:
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 8px 4px;
+        padding: 9px 4px;
         border-radius: 7px;
-        font-size: 15.5px;
+        font-size: 16.5px;
         font-weight: bold;
         color: #94A3B8 !important;
         text-decoration: none !important;

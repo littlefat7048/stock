@@ -73,7 +73,7 @@ if 'target_stock' in st.session_state and st.session_state['target_stock']:
 else:
     default_query = st.query_params.get('stock', '2330')
 
-st.markdown("<div style='font-size:16px; font-weight:bold; color:#00D4AA; margin-bottom:2px;'>🔍 輸入台股代號或中文股名查詢：</div>", unsafe_allow_html=True)
+st.markdown("<div style='font-size:18px; font-weight:bold; color:#00D4AA; margin-bottom:2px;'>🔍 輸入台股代號或中文股名查詢：</div>", unsafe_allow_html=True)
 col_input, col_btn = st.columns([3.6, 1.4])
 with col_input:
     raw_input = st.text_input(
@@ -94,7 +94,7 @@ sample_chips = "".join([
 ])
 st.markdown(
     f'<div style="display:flex; align-items:center; margin-bottom:6px;">'
-    f'<span style="color:#94A3B8; font-size:15px; margin-right:6px; flex-shrink:0;">熱門：</span>'
+    f'<span style="color:#94A3B8; font-size:17px; margin-right:6px; flex-shrink:0;">熱門：</span>'
     f'<div class="chips-scroll-bar" style="margin:0; padding:2px 0;">{sample_chips}</div>'
     f'</div>',
     unsafe_allow_html=True
@@ -151,15 +151,15 @@ if search_btn or raw_input:
         arrow = "▲" if price_change > 0 else "▼" if price_change < 0 else "➖"
         st.markdown(
             f"<div style='margin-bottom:2px; display:flex; align-items:center; flex-wrap:wrap; gap:6px;'>"
-            f"<span style='font-size:26px; font-weight:bold; color:#FAFAFA;'>🇹🇼 {stock_name}</span>"
-            f"<span style='color:#94A3B8; font-size:21px; font-weight:bold;'>({stock_code})</span>"
+            f"<span style='font-size:28px; font-weight:bold; color:#FAFAFA;'>🇹🇼 {stock_name}</span>"
+            f"<span style='color:#94A3B8; font-size:23px; font-weight:bold;'>({stock_code})</span>"
             f"<span class='market-badge'>{market_str}</span>"
             f"<span class='sector-badge'>{sector_str}</span>"
             f"</div>"
             f"<div style='margin-bottom:4px; display:flex; align-items:baseline; flex-wrap:wrap; gap:8px;'>"
-            f"<span style='font-size:30px; font-weight:bold; color:{price_color}'>NT$ {latest_close:,.2f}</span>"
-            f"<span style='font-size:19px; font-weight:bold; color:{price_color}'>{arrow} {abs(price_change):,.2f} ({pct_change:+.2f}%)</span>"
-            f"<span style='color:#888; font-size:14.5px;'>基準：{latest_date_str}</span>"
+            f"<span style='font-size:32px; font-weight:bold; color:{price_color}'>NT$ {latest_close:,.2f}</span>"
+            f"<span style='font-size:21px; font-weight:bold; color:{price_color}'>{arrow} {abs(price_change):,.2f} ({pct_change:+.2f}%)</span>"
+            f"<span style='color:#888; font-size:16.5px;'>基準：{latest_date_str}</span>"
             f"</div>",
             unsafe_allow_html=True
         )
@@ -204,21 +204,21 @@ if search_btn or raw_input:
             for i, it in enumerate(rev_mix_items)
         ])
         legend_pills_html = "".join([
-            f"<span style='display:inline-flex;align-items:center;gap:4px;font-size:15px;color:#E2E8F0;margin-right:10px;'>"
+            f"<span style='display:inline-flex;align-items:center;gap:4px;font-size:17px;color:#E2E8F0;margin-right:10px;'>"
             f"<span style='width:8px;height:8px;border-radius:50%;background:{bar_colors[i % len(bar_colors)]};display:inline-block;'></span>"
             f"<b>{it['name']}</b> <span style='color:{bar_colors[i % len(bar_colors)]};font-weight:bold;'>{it['pct']:.2f}%</span></span>"
             for i, it in enumerate(rev_mix_items)
         ])
         rev_mix_block = (
             f"<div style='margin-top:8px; padding-top:8px; border-top:1px solid #263044;'>"
-            f"<div style='color:#94A3B8; font-size:15px; margin-bottom:4px;'>🥧 <b>靠什麼產品賺錢（主力營收比重結構）：</b></div>"
+            f"<div style='color:#94A3B8; font-size:17px; margin-bottom:4px;'>🥧 <b>靠什麼產品賺錢（主力營收比重結構）：</b></div>"
             f"<div style='display:flex; width:100%; border-radius:6px; overflow:hidden; margin-bottom:6px; background:#1E293B;'>{stacked_seg_html}</div>"
             f"<div style='display:flex; flex-wrap:wrap; gap:4px;'>{legend_pills_html}</div>"
             f"</div>"
         )
     elif biz_analysis.get('revenue_mix_raw'):
         rev_mix_block = (
-            f"<div style='margin-top:8px; padding-top:8px; border-top:1px solid #263044; font-size:16px;'>"
+            f"<div style='margin-top:8px; padding-top:8px; border-top:1px solid #263044; font-size:18px;'>"
             f"🥧 <b>主力營收比重：</b>{biz_analysis['revenue_mix_raw']}"
             f"</div>"
         )
@@ -232,13 +232,13 @@ if search_btn or raw_input:
 
     st.markdown(
         f"<div class='info-card' style='border-left:4px solid #00D4AA; padding:12px 14px; margin-bottom:8px;'>"
-        f"<div style='font-size:17px; line-height:1.6; color:#F8FAFC;'>"
+        f"<div style='font-size:19px; line-height:1.6; color:#F8FAFC;'>"
         f"🛠️ <b>公司核心業務（做什麼的）：</b>{biz_analysis.get('one_liner', '')}"
         f"</div>"
         f"{rev_mix_block}"
         f"<div style='margin-top:8px; padding-top:8px; border-top:1px solid #263044;'>"
-        f"<div style='color:#FFD54F; font-weight:bold; font-size:16px; margin-bottom:4px;'>💰 為什麼會賺錢？近期獲利與成長動能白話解析：</div>"
-        f"<ul style='margin:0; padding-left:18px; font-size:16px; color:#E2E8F0;'>{why_profit_items_html}</ul>"
+        f"<div style='color:#FFD54F; font-weight:bold; font-size:18px; margin-bottom:4px;'>💰 為什麼會賺錢？近期獲利與成長動能白話解析：</div>"
+        f"<ul style='margin:0; padding-left:18px; font-size:18px; color:#E2E8F0;'>{why_profit_items_html}</ul>"
         f"</div>"
         f"</div>",
         unsafe_allow_html=True
@@ -258,12 +258,12 @@ if search_btn or raw_input:
     with col_eval:
         st.markdown(
             f"<div class='info-card' style='text-align:center; padding:12px 10px; margin-bottom:6px;'>"
-            f"<div style='color:#94A3B8;font-size:15px;margin-bottom:4px;'>目前綜合評價</div>"
+            f"<div style='color:#94A3B8;font-size:17px;margin-bottom:4px;'>目前綜合評價</div>"
             f"<div class='{css_cls}'>{diagnosis['action']}</div>"
-            f"<div style='margin-top:10px;font-size:17px;'>"
-            f"評分：<b style='color:#00D4AA;font-size:21px;'>{diagnosis['total_score']}</b> / 100"
+            f"<div style='margin-top:10px;font-size:19px;'>"
+            f"評分：<b style='color:#00D4AA;font-size:23px;'>{diagnosis['total_score']}</b> / 100"
             f"</div>"
-            f"<div style='color:#94A3B8;font-size:14.5px;margin-top:4px;'>"
+            f"<div style='color:#94A3B8;font-size:16.5px;margin-top:4px;'>"
             f"技術 {diagnosis['tech_score']}分 ｜ 籌碼 {diagnosis['chip_score']}分 ｜ 基本 {diagnosis['fund_score']}分"
             f"</div>"
             f"</div>",
@@ -275,26 +275,26 @@ if search_btn or raw_input:
         st.markdown(
             f"<div style='display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; margin-bottom:6px;'>"
             f"<div class='price-box' style='padding:8px 6px; text-align:center;'>"
-            f"<div style='color:#94A3B8;font-size:14.5px;'>💰 建議買進</div>"
-            f"<div style='color:#00D4AA;font-size:18px;font-weight:bold;margin-top:2px;'>{diagnosis['buy_zone']}</div>"
-            f"<div style='color:#888;font-size:13.5px;margin-top:2px;'>支撐：{diagnosis['support']:,.1f}</div>"
+            f"<div style='color:#94A3B8;font-size:16.5px;'>💰 建議買進</div>"
+            f"<div style='color:#00D4AA;font-size:20px;font-weight:bold;margin-top:2px;'>{diagnosis['buy_zone']}</div>"
+            f"<div style='color:#888;font-size:15.5px;margin-top:2px;'>支撐：{diagnosis['support']:,.1f}</div>"
             f"</div>"
             f"<div class='price-box' style='border-left-color:#e53935; padding:8px 6px; text-align:center;'>"
-            f"<div style='color:#94A3B8;font-size:14.5px;'>🚀 目標價</div>"
-            f"<div style='color:#e53935;font-size:18px;font-weight:bold;margin-top:2px;'>{diagnosis['target_price']}</div>"
-            f"<div style='color:#888;font-size:13.5px;margin-top:2px;'>壓力：{diagnosis['resistance']:,.1f}</div>"
+            f"<div style='color:#94A3B8;font-size:16.5px;'>🚀 目標價</div>"
+            f"<div style='color:#e53935;font-size:20px;font-weight:bold;margin-top:2px;'>{diagnosis['target_price']}</div>"
+            f"<div style='color:#888;font-size:15.5px;margin-top:2px;'>壓力：{diagnosis['resistance']:,.1f}</div>"
             f"</div>"
             f"<div class='price-box' style='border-left-color:#43a047; padding:8px 6px; text-align:center;'>"
-            f"<div style='color:#94A3B8;font-size:14.5px;'>🛑 停損價</div>"
-            f"<div style='color:#43a047;font-size:18px;font-weight:bold;margin-top:2px;'>{diagnosis['stop_loss']}</div>"
-            f"<div style='color:#888;font-size:13.5px;margin-top:2px;'>防守線</div>"
+            f"<div style='color:#94A3B8;font-size:16.5px;'>🛑 停損價</div>"
+            f"<div style='color:#43a047;font-size:20px;font-weight:bold;margin-top:2px;'>{diagnosis['stop_loss']}</div>"
+            f"<div style='color:#888;font-size:15.5px;margin-top:2px;'>防守線</div>"
             f"</div>"
             f"</div>",
             unsafe_allow_html=True
         )
 
         st.markdown(
-            f"<div class='info-card' style='padding:8px 12px; margin-bottom:6px; font-size:16px;'>"
+            f"<div class='info-card' style='padding:8px 12px; margin-bottom:6px; font-size:18px;'>"
             f"💡 <b>操作建議：</b>{diagnosis['advice']}"
             f"</div>",
             unsafe_allow_html=True
@@ -307,16 +307,16 @@ if search_btn or raw_input:
     with col_pros:
         st.markdown(
             f"<div class='pro-box'>"
-            f"<div style='color:#FF8A80;font-weight:bold;font-size:16px;margin-bottom:4px;'>👍 多方優勢與亮點</div>"
-            f"<ul style='margin:0;padding-left:18px;font-size:16px;'>{pros_items}</ul>"
+            f"<div style='color:#FF8A80;font-weight:bold;font-size:18px;margin-bottom:4px;'>👍 多方優勢與亮點</div>"
+            f"<ul style='margin:0;padding-left:18px;font-size:18px;'>{pros_items}</ul>"
             f"</div>",
             unsafe_allow_html=True
         )
     with col_cons:
         st.markdown(
             f"<div class='con-box'>"
-            f"<div style='color:#81C784;font-weight:bold;font-size:16px;margin-bottom:4px;'>⚠️ 潛在風險與注意事項</div>"
-            f"<ul style='margin:0;padding-left:18px;font-size:16px;'>{cons_items}</ul>"
+            f"<div style='color:#81C784;font-weight:bold;font-size:18px;margin-bottom:4px;'>⚠️ 潛在風險與注意事項</div>"
+            f"<ul style='margin:0;padding-left:18px;font-size:18px;'>{cons_items}</ul>"
             f"</div>",
             unsafe_allow_html=True
         )
@@ -359,24 +359,24 @@ if search_btn or raw_input:
         st.markdown(
             f"<div class='info-card' style='border-left:4px solid #38BDF8; padding:10px 12px; margin-bottom:8px;'>"
             f"<div style='display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:6px;'>"
-            f"<span style='color:#38BDF8; font-weight:bold; font-size:16.5px;'>📌 最新交易日（{latest_date_str}）詳細數據一覽（免點圖表直接看）</span>"
-            f"<span style='color:#94A3B8; font-size:14.5px;'>🔒 圖表已鎖定防誤觸滑走，輕點K棒可看單日十字查價</span>"
+            f"<span style='color:#38BDF8; font-weight:bold; font-size:18.5px;'>📌 最新交易日（{latest_date_str}）詳細數據一覽（免點圖表直接看）</span>"
+            f"<span style='color:#94A3B8; font-size:16.5px;'>🔒 圖表已鎖定防誤觸滑走，輕點K棒可看單日十字查價</span>"
             f"</div>"
-            f"<div style='display:grid; grid-template-columns: repeat(auto-fit, minmax(115px, 1fr)); gap:6px; font-size:15.5px;'>"
+            f"<div style='display:grid; grid-template-columns: repeat(auto-fit, minmax(115px, 1fr)); gap:6px; font-size:17.5px;'>"
             f"<div style='background:#161F30; padding:6px 8px; border-radius:6px;'>"
-            f"<div style='color:#94A3B8; font-size:14.5px;'>📊 當日四價</div>"
+            f"<div style='color:#94A3B8; font-size:16.5px;'>📊 當日四價</div>"
             f"<div>開 <b>{open_p:,.2f}</b> ｜ 高 <b style='color:#e53935;'>{high_p:,.2f}</b><br>低 <b style='color:#43a047;'>{low_p:,.2f}</b> ｜ 收 <b style='color:{price_color};'>{latest_close:,.2f}</b></div>"
             f"</div>"
             f"<div style='background:#161F30; padding:6px 8px; border-radius:6px;'>"
-            f"<div style='color:#94A3B8; font-size:14.5px;'>📏 均線位置 (MA)</div>"
+            f"<div style='color:#94A3B8; font-size:16.5px;'>📏 均線位置 (MA)</div>"
             f"<div>5日 <b style='color:#FFD700;'>{ma5_v:,.2f}</b> ｜ 10日 <b style='color:#FF80AB;'>{ma10_v:,.2f}</b><br>20日 <b style='color:#00E5FF;'>{ma20_v:,.2f}</b> ｜ 60日 <b style='color:#FF9100;'>{ma60_v:,.2f}</b></div>"
             f"</div>"
             f"<div style='background:#161F30; padding:6px 8px; border-radius:6px;'>"
-            f"<div style='color:#94A3B8; font-size:14.5px;'>⚡ KD / RSI / 量</div>"
+            f"<div style='color:#94A3B8; font-size:16.5px;'>⚡ KD / RSI / 量</div>"
             f"<div>K <b style='color:#FFD700;'>{k_v:.1f}</b> / D <b style='color:#00E5FF;'>{d_v:.1f}</b> ｜ RSI <b>{rsi_v:.1f}</b><br>成交量：<b>{vol_lot:,} 張</b></div>"
             f"</div>"
             f"<div style='background:#161F30; padding:6px 8px; border-radius:6px;'>"
-            f"<div style='color:#94A3B8; font-size:14.5px;'>🌊 MACD 指標</div>"
+            f"<div style='color:#94A3B8; font-size:16.5px;'>🌊 MACD 指標</div>"
             f"<div>DIF <b style='color:#00E5FF;'>{dif_v:.2f}</b> ｜ MACD <b style='color:#FF80AB;'>{macd_v:.2f}</b><br>柱狀(OSC)：<b style='color:{'#e53935' if osc_v>=0 else '#43a047'};'>{osc_v:+.2f}</b></div>"
             f"</div>"
             f"</div>"
@@ -387,11 +387,11 @@ if search_btn or raw_input:
         # 2. 外部專業看盤一鍵跳轉列（Yahoo股市 / 玩股網 / Goodinfo / HiStock）
         st.markdown(
             f"<div style='display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;'>"
-            f"<span style='color:#94A3B8; font-size:15px;'>🔗 外部專業看盤線圖：</span>"
-            f"<a href='https://tw.stock.yahoo.com/quote/{stock_code}/technical-analysis' target='_blank' class='stock-chip-link' style='font-size:15px; padding:3px 9px;'>📈 Yahoo奇摩技術線圖 ↗</a>"
-            f"<a href='https://www.wantgoo.com/stock/{stock_code}/technical-chart' target='_blank' class='stock-chip-link' style='font-size:15px; padding:3px 9px;'>📊 玩股網動態K線 ↗</a>"
-            f"<a href='https://goodinfo.tw/tw/ShowK_Chart.asp?STOCK_ID={stock_code}&CHT_CAT=DATE' target='_blank' class='stock-chip-link' style='font-size:15px; padding:3px 9px;'>📋 Goodinfo K線圖 ↗</a>"
-            f"<a href='https://histock.tw/stock/{stock_code}/%E6%8A%80%E8%A1%93%E5%88%86%E6%9E%90' target='_blank' class='stock-chip-link' style='font-size:15px; padding:3px 9px;'>📉 HiStock 技術分析 ↗</a>"
+            f"<span style='color:#94A3B8; font-size:17px;'>🔗 外部專業看盤線圖：</span>"
+            f"<a href='https://tw.stock.yahoo.com/quote/{stock_code}/technical-analysis' target='_blank' class='stock-chip-link' style='font-size:17px; padding:3px 9px;'>📈 Yahoo奇摩技術線圖 ↗</a>"
+            f"<a href='https://www.wantgoo.com/stock/{stock_code}/technical-chart' target='_blank' class='stock-chip-link' style='font-size:17px; padding:3px 9px;'>📊 玩股網動態K線 ↗</a>"
+            f"<a href='https://goodinfo.tw/tw/ShowK_Chart.asp?STOCK_ID={stock_code}&CHT_CAT=DATE' target='_blank' class='stock-chip-link' style='font-size:17px; padding:3px 9px;'>📋 Goodinfo K線圖 ↗</a>"
+            f"<a href='https://histock.tw/stock/{stock_code}/%E6%8A%80%E8%A1%93%E5%88%86%E6%9E%90' target='_blank' class='stock-chip-link' style='font-size:17px; padding:3px 9px;'>📉 HiStock 技術分析 ↗</a>"
             f"</div>",
             unsafe_allow_html=True
         )
@@ -414,16 +414,16 @@ if search_btn or raw_input:
             for label, sig_text in signals_display:
                 st.markdown(
                     f"<div class='info-card'>"
-                    f"<div style='color:#94A3B8;font-size:15px'>{label}</div>"
-                    f"<div style='font-weight:bold;font-size:17px;margin-top:4px'>{sig_text}</div>"
+                    f"<div style='color:#94A3B8;font-size:17px'>{label}</div>"
+                    f"<div style='font-weight:bold;font-size:19px;margin-top:4px'>{sig_text}</div>"
                     f"</div>",
                     unsafe_allow_html=True
                 )
 
             st.markdown(
                 f"<div class='info-card'>"
-                f"<div style='color:#94A3B8;font-size:15px;margin-bottom:6px;'>📏 各期均線目前位置</div>"
-                f"<div style='font-size:16px;line-height:1.8;'>"
+                f"<div style='color:#94A3B8;font-size:17px;margin-bottom:6px;'>📏 各期均線目前位置</div>"
+                f"<div style='font-size:18px;line-height:1.8;'>"
                 f"• 5日線 (週線)：<b>{ma5_v:,.2f}</b> 元<br>"
                 f"• 10日線 (雙週)：<b>{ma10_v:,.2f}</b> 元<br>"
                 f"• 20日線 (月線)：<b>{ma20_v:,.2f}</b> 元<br>"
@@ -462,8 +462,8 @@ if search_btn or raw_input:
                     "<div style='background:#131C2E; border:1px solid #263044; border-left:4px solid #FFD600; "
                     "border-radius:8px; padding:8px 12px; margin:4px 0 6px 0;'>"
                     "<div style='display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:4px;'>"
-                    "<span style='color:#FFD600; font-weight:bold; font-size:16.5px;'>🔥 法人力度 (2026 版) ── 雙層過濾「顯著買超(🟡)」副圖</span>"
-                    "<span style='color:#94A3B8; font-size:14.5px;'>🟡 亮黃圓點＝Z-Score 突破門檻＋佔股本比顯著（法人真正在拉）｜白實線(10MA)＞白虛線(40MA)＝中期吸籌</span>"
+                    "<span style='color:#FFD600; font-weight:bold; font-size:18.5px;'>🔥 法人力度 (2026 版) ── 雙層過濾「顯著買超(🟡)」副圖</span>"
+                    "<span style='color:#94A3B8; font-size:16.5px;'>🟡 亮黃圓點＝Z-Score 突破門檻＋佔股本比顯著（法人真正在拉）｜白實線(10MA)＞白虛線(40MA)＝中期吸籌</span>"
                     "</div></div>",
                     unsafe_allow_html=True
                 )
@@ -558,39 +558,39 @@ if search_btn or raw_input:
                 st.markdown(
                     f"<div class='info-card' style='border-left:4px solid {border_col}; padding:12px 14px; margin-bottom:10px;'>"
                     f"<div style='display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:6px;'>"
-                    f"<span style='color:#FFD600; font-weight:bold; font-size:18px;'>🔥 法人力度（顯著買超）雙層過濾診斷：{imeta.get('headline', '')}</span>"
-                    f"<span style='background:#1E293B; color:#94A3B8; font-size:14.5px; padding:2px 8px; border-radius:12px;'>"
+                    f"<span style='color:#FFD600; font-weight:bold; font-size:20px;'>🔥 法人力度（顯著買超）雙層過濾診斷：{imeta.get('headline', '')}</span>"
+                    f"<span style='background:#1E293B; color:#94A3B8; font-size:16.5px; padding:2px 8px; border-radius:12px;'>"
                     f"公司總股本約 {imeta.get('total_lots', 0):,} 張</span>"
                     f"</div>"
-                    f"<div style='font-size:16.5px; color:#F8FAFC; line-height:1.6; margin-bottom:8px;'>"
+                    f"<div style='font-size:18.5px; color:#F8FAFC; line-height:1.6; margin-bottom:8px;'>"
                     f"💡 <b>為什麼不直接看買賣超張數？</b>同樣買超 1,000 張，放在大型權值股只是零頭，放在中小型股卻是重倉掃貨！"
                     f"本指標先做<b>第一層「標準化 Z-Score（跟自己過去20天比是否異常放大）」</b>，再做<b>第二層「佔股本比（相對整間公司股本份量）」</b>：<br>"
                     f"👉 <b>目前判讀：</b>{imeta.get('verdict', '')}"
                     f"</div>"
-                    f"<div style='display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:6px; font-size:15.5px;'>"
+                    f"<div style='display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:6px; font-size:17.5px;'>"
                     f"<div style='background:#161F30; padding:7px 9px; border-radius:6px;'>"
-                    f"<div style='color:#94A3B8; font-size:14.5px;'>📏 第一層：最新標準化 Z 值</div>"
-                    f"<div style='font-size:19px; font-weight:bold; color:{'#FFD600' if imeta.get('latest_z_score',0)>=1.5 else ('#e53935' if imeta.get('latest_z_score',0)>0 else '#43a047')};'>"
+                    f"<div style='color:#94A3B8; font-size:16.5px;'>📏 第一層：最新標準化 Z 值</div>"
+                    f"<div style='font-size:21px; font-weight:bold; color:{'#FFD600' if imeta.get('latest_z_score',0)>=1.5 else ('#e53935' if imeta.get('latest_z_score',0)>0 else '#43a047')};'>"
                     f"{imeta.get('latest_z_score', 0.0):+.2f} σ</div>"
-                    f"<div style='color:#888; font-size:14px;'>≥ +1.5σ 代表異常大買</div>"
+                    f"<div style='color:#888; font-size:16px;'>≥ +1.5σ 代表異常大買</div>"
                     f"</div>"
                     f"<div style='background:#161F30; padding:7px 9px; border-radius:6px;'>"
-                    f"<div style='color:#94A3B8; font-size:14.5px;'>⚖️ 第二層：單日佔股本比</div>"
-                    f"<div style='font-size:19px; font-weight:bold; color:{'#e53935' if imeta.get('latest_cap_pct',0)>=0 else '#43a047'};'>"
+                    f"<div style='color:#94A3B8; font-size:16.5px;'>⚖️ 第二層：單日佔股本比</div>"
+                    f"<div style='font-size:21px; font-weight:bold; color:{'#e53935' if imeta.get('latest_cap_pct',0)>=0 else '#43a047'};'>"
                     f"{imeta.get('latest_cap_pct', 0.0):+.3f}%</div>"
-                    f"<div style='color:#888; font-size:14px;'>外資 {imeta.get('latest_f_cap_pct',0):+.3f}%｜投本比 {imeta.get('latest_t_cap_pct',0):+.3f}%</div>"
+                    f"<div style='color:#888; font-size:16px;'>外資 {imeta.get('latest_f_cap_pct',0):+.3f}%｜投本比 {imeta.get('latest_t_cap_pct',0):+.3f}%</div>"
                     f"</div>"
                     f"<div style='background:#161F30; padding:7px 9px; border-radius:6px;'>"
-                    f"<div style='color:#94A3B8; font-size:14.5px;'>📦 近 5 日累計佔股本比</div>"
-                    f"<div style='font-size:19px; font-weight:bold; color:{'#e53935' if imeta.get('sum5_cap_pct',0)>=0 else '#43a047'};'>"
+                    f"<div style='color:#94A3B8; font-size:16.5px;'>📦 近 5 日累計佔股本比</div>"
+                    f"<div style='font-size:21px; font-weight:bold; color:{'#e53935' if imeta.get('sum5_cap_pct',0)>=0 else '#43a047'};'>"
                     f"{imeta.get('sum5_cap_pct', 0.0):+.3f}%</div>"
-                    f"<div style='color:#888; font-size:14px;'>近20日累計：{imeta.get('sum20_cap_pct', 0.0):+.3f}%</div>"
+                    f"<div style='color:#888; font-size:16px;'>近20日累計：{imeta.get('sum20_cap_pct', 0.0):+.3f}%</div>"
                     f"</div>"
                     f"<div style='background:#161F30; padding:7px 9px; border-radius:6px;'>"
-                    f"<div style='color:#94A3B8; font-size:14.5px;'>🟡 顯著買超亮燈統計</div>"
-                    f"<div style='font-size:18px; font-weight:bold; color:#FFD600;'>"
+                    f"<div style='color:#94A3B8; font-size:16.5px;'>🟡 顯著買超亮燈統計</div>"
+                    f"<div style='font-size:20px; font-weight:bold; color:#FFD600;'>"
                     f"近5日 {imeta.get('sig_buy_count_5d', 0)} 次 / 近20日 {imeta.get('sig_buy_count_20d', 0)} 次</div>"
-                    f"<div style='color:#888; font-size:14px;'>亮燈日：{sig_dates_str}</div>"
+                    f"<div style='color:#888; font-size:16px;'>亮燈日：{sig_dates_str}</div>"
                     f"</div>"
                     f"</div>"
                     f"</div>",
@@ -649,9 +649,9 @@ if search_btn or raw_input:
             with c1:
                 st.markdown(
                     f"<div class='info-card'>"
-                    f"<div style='color:#94A3B8;font-size:16px;'>籌碼綜合評分（含力度加成）</div>"
-                    f"<div style='font-size:28px;font-weight:bold;color:#00D4AA;margin:4px 0;'>{chip_score} / 100</div>"
-                    f"<div style='font-size:16px;'>{chip_label}</div>"
+                    f"<div style='color:#94A3B8;font-size:18px;'>籌碼綜合評分（含力度加成）</div>"
+                    f"<div style='font-size:30px;font-weight:bold;color:#00D4AA;margin:4px 0;'>{chip_score} / 100</div>"
+                    f"<div style='font-size:18px;'>{chip_label}</div>"
                     f"</div>",
                     unsafe_allow_html=True
                 )
@@ -660,9 +660,9 @@ if search_btn or raw_input:
                 f_col = '#e53935' if f5 >= 0 else '#43a047'
                 st.markdown(
                     f"<div class='info-card'>"
-                    f"<div style='color:#94A3B8;font-size:16px;'>🌍 外資動向（{chip_summary['foreign_streak']}）</div>"
-                    f"<div style='font-size:24px;font-weight:bold;color:{f_col};margin:4px 0;'>近5日 {f5:+,.1f} 張</div>"
-                    f"<div style='font-size:15px;color:#AAA;'>最新單日：{chip_summary['foreign_1d']:+,.1f} 張 ｜ 近20日：{chip_summary['foreign_20d']:+,.1f} 張</div>"
+                    f"<div style='color:#94A3B8;font-size:18px;'>🌍 外資動向（{chip_summary['foreign_streak']}）</div>"
+                    f"<div style='font-size:26px;font-weight:bold;color:{f_col};margin:4px 0;'>近5日 {f5:+,.1f} 張</div>"
+                    f"<div style='font-size:17px;color:#AAA;'>最新單日：{chip_summary['foreign_1d']:+,.1f} 張 ｜ 近20日：{chip_summary['foreign_20d']:+,.1f} 張</div>"
                     f"</div>",
                     unsafe_allow_html=True
                 )
@@ -671,9 +671,9 @@ if search_btn or raw_input:
                 t_col = '#e53935' if t5 >= 0 else '#43a047'
                 st.markdown(
                     f"<div class='info-card'>"
-                    f"<div style='color:#94A3B8;font-size:16px;'>🏦 投信動向（{chip_summary['trust_streak']}）</div>"
-                    f"<div style='font-size:24px;font-weight:bold;color:{t_col};margin:4px 0;'>近5日 {t5:+,.1f} 張</div>"
-                    f"<div style='font-size:15px;color:#AAA;'>最新單日：{chip_summary['trust_1d']:+,.1f} 張 ｜ 近20日：{chip_summary['trust_20d']:+,.1f} 張</div>"
+                    f"<div style='color:#94A3B8;font-size:18px;'>🏦 投信動向（{chip_summary['trust_streak']}）</div>"
+                    f"<div style='font-size:26px;font-weight:bold;color:{t_col};margin:4px 0;'>近5日 {t5:+,.1f} 張</div>"
+                    f"<div style='font-size:17px;color:#AAA;'>最新單日：{chip_summary['trust_1d']:+,.1f} 張 ｜ 近20日：{chip_summary['trust_20d']:+,.1f} 張</div>"
                     f"</div>",
                     unsafe_allow_html=True
                 )
@@ -682,9 +682,9 @@ if search_btn or raw_input:
                 tot_col = '#e53935' if tot5 >= 0 else '#43a047'
                 st.markdown(
                     f"<div class='info-card'>"
-                    f"<div style='color:#94A3B8;font-size:16px;'>📊 三大法人合計（{chip_summary['total_streak']}）</div>"
-                    f"<div style='font-size:24px;font-weight:bold;color:{tot_col};margin:4px 0;'>近5日 {tot5:+,.1f} 張</div>"
-                    f"<div style='font-size:15px;color:#AAA;'>最新單日：{chip_summary['total_1d']:+,.1f} 張 ｜ 近20日：{chip_summary['total_20d']:+,.1f} 張</div>"
+                    f"<div style='color:#94A3B8;font-size:18px;'>📊 三大法人合計（{chip_summary['total_streak']}）</div>"
+                    f"<div style='font-size:26px;font-weight:bold;color:{tot_col};margin:4px 0;'>近5日 {tot5:+,.1f} 張</div>"
+                    f"<div style='font-size:17px;color:#AAA;'>最新單日：{chip_summary['total_1d']:+,.1f} 張 ｜ 近20日：{chip_summary['total_20d']:+,.1f} 張</div>"
                     f"</div>",
                     unsafe_allow_html=True
                 )
@@ -749,9 +749,9 @@ if search_btn or raw_input:
             ])
             st.markdown(
                 f"<div class='info-card' style='height:100%;'>"
-                f"<div style='color:#00D4AA;font-weight:bold;font-size:17px;margin-bottom:6px;'>🛠️ 公司是做什麼的？（主要經營業務）</div>"
-                f"<ul style='margin:0 0 10px 0;padding-left:18px;font-size:16px;line-height:1.6;color:#F8FAFC;'>{biz_bullets}</ul>"
-                f"<div style='color:#38BDF8;font-weight:bold;font-size:16px;margin-bottom:4px;'>🔗 相關細分產業與終端應用領域：</div>"
+                f"<div style='color:#00D4AA;font-weight:bold;font-size:19px;margin-bottom:6px;'>🛠️ 公司是做什麼的？（主要經營業務）</div>"
+                f"<ul style='margin:0 0 10px 0;padding-left:18px;font-size:18px;line-height:1.6;color:#F8FAFC;'>{biz_bullets}</ul>"
+                f"<div style='color:#38BDF8;font-weight:bold;font-size:18px;margin-bottom:4px;'>🔗 相關細分產業與終端應用領域：</div>"
                 f"<div>{ind_badges if ind_badges else sector_str}</div>"
                 f"</div>",
                 unsafe_allow_html=True
@@ -766,7 +766,7 @@ if search_btn or raw_input:
                     pct_v = max(0.0, min(100.0, float(it['pct'])))
                     rows_html += (
                         f"<div style='margin-bottom:8px;'>"
-                        f"<div style='display:flex;justify-content:space-between;font-size:16px;margin-bottom:2px;'>"
+                        f"<div style='display:flex;justify-content:space-between;font-size:18px;margin-bottom:2px;'>"
                         f"<span style='color:#F8FAFC;font-weight:bold;'>{it['name']}</span>"
                         f"<span style='color:{c_hex};font-weight:bold;'>{pct_v:.2f}%</span>"
                         f"</div>"
@@ -777,17 +777,17 @@ if search_btn or raw_input:
                     )
                 st.markdown(
                     f"<div class='info-card' style='height:100%;'>"
-                    f"<div style='color:#FFD54F;font-weight:bold;font-size:17px;margin-bottom:8px;'>🥧 靠什麼賺錢？（主力產品營收比重結構）</div>"
+                    f"<div style='color:#FFD54F;font-weight:bold;font-size:19px;margin-bottom:8px;'>🥧 靠什麼賺錢？（主力產品營收比重結構）</div>"
                     f"{rows_html}"
-                    f"<div style='color:#94A3B8;font-size:14.5px;margin-top:4px;'>原始比重：{biz_analysis.get('revenue_mix_raw', '')}</div>"
+                    f"<div style='color:#94A3B8;font-size:16.5px;margin-top:4px;'>原始比重：{biz_analysis.get('revenue_mix_raw', '')}</div>"
                     f"</div>",
                     unsafe_allow_html=True
                 )
             else:
                 st.markdown(
                     f"<div class='info-card'>"
-                    f"<div style='color:#FFD54F;font-weight:bold;font-size:17px;margin-bottom:6px;'>🥧 靠什麼賺錢？（業務結構）</div>"
-                    f"<div style='font-size:16px;line-height:1.6;'>{biz_analysis.get('one_liner', '')}</div>"
+                    f"<div style='color:#FFD54F;font-weight:bold;font-size:19px;margin-bottom:6px;'>🥧 靠什麼賺錢？（業務結構）</div>"
+                    f"<div style='font-size:18px;line-height:1.6;'>{biz_analysis.get('one_liner', '')}</div>"
                     f"</div>",
                     unsafe_allow_html=True
                 )
@@ -796,8 +796,8 @@ if search_btn or raw_input:
         why_html = "".join([f"<li style='margin:6px 0;line-height:1.6;'>{w}</li>" for w in (biz_analysis.get('why_profitable') or [])])
         st.markdown(
             f"<div class='info-card' style='border-left:4px solid #FFD54F; margin-top:6px;'>"
-            f"<div style='color:#FFD54F;font-weight:bold;font-size:18px;margin-bottom:6px;'>💰 為什麼會賺錢？本業獲利模式與近期成長動能深度白話解析</div>"
-            f"<ul style='margin:0;padding-left:18px;font-size:16.5px;color:#F8FAFC;'>{why_html}</ul>"
+            f"<div style='color:#FFD54F;font-weight:bold;font-size:20px;margin-bottom:6px;'>💰 為什麼會賺錢？本業獲利模式與近期成長動能深度白話解析</div>"
+            f"<ul style='margin:0;padding-left:18px;font-size:18.5px;color:#F8FAFC;'>{why_html}</ul>"
             f"</div>",
             unsafe_allow_html=True
         )
@@ -824,9 +824,9 @@ if search_btn or raw_input:
             ind_pe_txt = f"同業平均：{ind_pe:.1f} 倍" if ind_pe else f"判讀：{pe_status}"
             st.markdown(
                 f"<div class='info-card'>"
-                f"<div style='color:#94A3B8;font-size:15px;'>本益比 (PE Ratio)</div>"
-                f"<div style='font-size:26px;font-weight:bold;color:#00D4AA;margin:4px 0;'>{f'{pe:.2f} 倍' if pe else '無資料 (虧損或未公布)'}</div>"
-                f"<div style='font-size:15px;color:#AAA;'>{ind_pe_txt}（{pe_status}）</div>"
+                f"<div style='color:#94A3B8;font-size:17px;'>本益比 (PE Ratio)</div>"
+                f"<div style='font-size:28px;font-weight:bold;color:#00D4AA;margin:4px 0;'>{f'{pe:.2f} 倍' if pe else '無資料 (虧損或未公布)'}</div>"
+                f"<div style='font-size:17px;color:#AAA;'>{ind_pe_txt}（{pe_status}）</div>"
                 f"</div>",
                 unsafe_allow_html=True
             )
@@ -835,9 +835,9 @@ if search_btn or raw_input:
             nav_txt = f"每股淨值：{nav:.2f} 元" if nav else f"判讀：{pb_status if pb else '—'}"
             st.markdown(
                 f"<div class='info-card'>"
-                f"<div style='color:#94A3B8;font-size:15px;'>股價淨值比 (PB Ratio)</div>"
-                f"<div style='font-size:26px;font-weight:bold;color:#38BDF8;margin:4px 0;'>{f'{pb:.2f} 倍' if pb else 'N/A'}</div>"
-                f"<div style='font-size:15px;color:#AAA;'>{nav_txt}</div>"
+                f"<div style='color:#94A3B8;font-size:17px;'>股價淨值比 (PB Ratio)</div>"
+                f"<div style='font-size:28px;font-weight:bold;color:#38BDF8;margin:4px 0;'>{f'{pb:.2f} 倍' if pb else 'N/A'}</div>"
+                f"<div style='font-size:17px;color:#AAA;'>{nav_txt}</div>"
                 f"</div>",
                 unsafe_allow_html=True
             )
@@ -847,9 +847,9 @@ if search_btn or raw_input:
             cdiv_txt = f"現金股利：{cdiv:.2f} 元" if cdiv else f"判讀：{div_status}"
             st.markdown(
                 f"<div class='info-card'>"
-                f"<div style='color:#94A3B8;font-size:15px;'>現金殖利率 (Yield)</div>"
-                f"<div style='font-size:26px;font-weight:bold;color:#FFD54F;margin:4px 0;'>{f'{div_pct:.2f}%' if div is not None else 'N/A'}</div>"
-                f"<div style='font-size:15px;color:#AAA;'>{cdiv_txt}</div>"
+                f"<div style='color:#94A3B8;font-size:17px;'>現金殖利率 (Yield)</div>"
+                f"<div style='font-size:28px;font-weight:bold;color:#FFD54F;margin:4px 0;'>{f'{div_pct:.2f}%' if div is not None else 'N/A'}</div>"
+                f"<div style='font-size:17px;color:#AAA;'>{cdiv_txt}</div>"
                 f"</div>",
                 unsafe_allow_html=True
             )
@@ -858,9 +858,9 @@ if search_btn or raw_input:
             cap_txt = f"股本：{cap_yi:.2f} 億 ｜ " if cap_yi else ""
             st.markdown(
                 f"<div class='info-card'>"
-                f"<div style='color:#94A3B8;font-size:15px;'>公司總市值與股本</div>"
-                f"<div style='font-size:26px;font-weight:bold;color:#FAFAFA;margin:4px 0;'>{mc_str}</div>"
-                f"<div style='font-size:15px;color:#AAA;'>{cap_txt}一年高低：{f'{l52:,.1f}~{h52:,.1f}' if (h52 and l52) else '—'}</div>"
+                f"<div style='color:#94A3B8;font-size:17px;'>公司總市值與股本</div>"
+                f"<div style='font-size:28px;font-weight:bold;color:#FAFAFA;margin:4px 0;'>{mc_str}</div>"
+                f"<div style='font-size:17px;color:#AAA;'>{cap_txt}一年高低：{f'{l52:,.1f}~{h52:,.1f}' if (h52 and l52) else '—'}</div>"
                 f"</div>",
                 unsafe_allow_html=True
             )
@@ -877,9 +877,9 @@ if search_btn or raw_input:
             gm_str = f"{gm_v*100:.2f}%" if gm_v is not None else "N/A"
             st.markdown(
                 f"<div class='info-card'>"
-                f"<div style='color:#94A3B8;font-size:15px;'>營業毛利率（產品競爭力）</div>"
-                f"<div style='font-size:24px;font-weight:bold;color:#FF8A80;margin:4px 0;'>{gm_str}</div>"
-                f"<div style='font-size:14.5px;color:#AAA;'>毛利率越高代表產品附加價值與定價權越強</div>"
+                f"<div style='color:#94A3B8;font-size:17px;'>營業毛利率（產品競爭力）</div>"
+                f"<div style='font-size:26px;font-weight:bold;color:#FF8A80;margin:4px 0;'>{gm_str}</div>"
+                f"<div style='font-size:16.5px;color:#AAA;'>毛利率越高代表產品附加價值與定價權越強</div>"
                 f"</div>",
                 unsafe_allow_html=True
             )
@@ -887,9 +887,9 @@ if search_btn or raw_input:
             om_str = f"{om_v*100:.2f}%" if om_v is not None else "N/A"
             st.markdown(
                 f"<div class='info-card'>"
-                f"<div style='color:#94A3B8;font-size:15px;'>營業利益率（本業實賺率）</div>"
-                f"<div style='font-size:24px;font-weight:bold;color:#FF8A80;margin:4px 0;'>{om_str}</div>"
-                f"<div style='font-size:14.5px;color:#AAA;'>扣除管銷研發費用後，本業每百元營收實賺比例</div>"
+                f"<div style='color:#94A3B8;font-size:17px;'>營業利益率（本業實賺率）</div>"
+                f"<div style='font-size:26px;font-weight:bold;color:#FF8A80;margin:4px 0;'>{om_str}</div>"
+                f"<div style='font-size:16.5px;color:#AAA;'>扣除管銷研發費用後，本業每百元營收實賺比例</div>"
                 f"</div>",
                 unsafe_allow_html=True
             )
@@ -897,9 +897,9 @@ if search_btn or raw_input:
             roe_str = f"{roe_v*100:.2f}%" if roe_v is not None else "N/A"
             st.markdown(
                 f"<div class='info-card'>"
-                f"<div style='color:#94A3B8;font-size:15px;'>股東權益報酬率 (ROE)</div>"
-                f"<div style='font-size:24px;font-weight:bold;color:#A78BFA;margin:4px 0;'>{roe_str}</div>"
-                f"<div style='font-size:14.5px;color:#AAA;'>衡量公司替股東資金創造獲利的效率</div>"
+                f"<div style='color:#94A3B8;font-size:17px;'>股東權益報酬率 (ROE)</div>"
+                f"<div style='font-size:26px;font-weight:bold;color:#A78BFA;margin:4px 0;'>{roe_str}</div>"
+                f"<div style='font-size:16.5px;color:#AAA;'>衡量公司替股東資金創造獲利的效率</div>"
                 f"</div>",
                 unsafe_allow_html=True
             )
@@ -908,9 +908,9 @@ if search_btn or raw_input:
             debt_txt = f"負債比例：{debt_v:.1f}%" if debt_v is not None else "大股東籌碼集中度指標"
             st.markdown(
                 f"<div class='info-card'>"
-                f"<div style='color:#94A3B8;font-size:15px;'>董監事持股比例（大股東信心）</div>"
-                f"<div style='font-size:24px;font-weight:bold;color:#34D399;margin:4px 0;'>{dh_str}</div>"
-                f"<div style='font-size:14.5px;color:#AAA;'>{debt_txt}</div>"
+                f"<div style='color:#94A3B8;font-size:17px;'>董監事持股比例（大股東信心）</div>"
+                f"<div style='font-size:26px;font-weight:bold;color:#34D399;margin:4px 0;'>{dh_str}</div>"
+                f"<div style='font-size:16.5px;color:#AAA;'>{debt_txt}</div>"
                 f"</div>",
                 unsafe_allow_html=True
             )
@@ -928,7 +928,7 @@ if search_btn or raw_input:
             news_items_html = "".join([f"<li style='margin:4px 0;'>{n}</li>" for n in recent_news_list])
             st.markdown(
                 f"<div class='info-card' style='border-left:4px solid #38BDF8;'>"
-                f"<ul style='margin:0;padding-left:18px;font-size:16px;line-height:1.65;color:#E2E8F0;'>{news_items_html}</ul>"
+                f"<ul style='margin:0;padding-left:18px;font-size:18px;line-height:1.65;color:#E2E8F0;'>{news_items_html}</ul>"
                 f"</div>",
                 unsafe_allow_html=True
             )
@@ -1044,7 +1044,7 @@ if search_btn or raw_input:
 
                 ac1, ac2, ac3, ac4 = st.columns(4)
                 with ac1:
-                    st.markdown(f"<div style='margin-bottom:6px;color:#AAA;font-size:16px;'>AI 投資評級</div><span class='{badge_cls}'>{rating}</span>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='margin-bottom:6px;color:#AAA;font-size:18px;'>AI 投資評級</div><span class='{badge_cls}'>{rating}</span>", unsafe_allow_html=True)
                     st.caption(f"AI 信心指數：{ai_result.get('confidence', 7)} / 10")
                 with ac2:
                     st.metric("🎯 AI 建議買進區間", f"NT$ {ai_result.get('buy_zone_low', 0)} ~ {ai_result.get('buy_zone_high', 0)}")
@@ -1107,11 +1107,11 @@ if search_btn or raw_input:
             for citem in concept_details:
                 st.markdown(
                     f"<div class='info-card' style='border-left:4px solid #FFB300;'>"
-                    f"<div style='font-size:19px;font-weight:bold;color:#FFD54F;'>"
+                    f"<div style='font-size:21px;font-weight:bold;color:#FFD54F;'>"
                     f"🏷️ {citem['big_category']} ▸ {citem['concept_name']}"
                     f"</div>"
-                    f"<div style='color:#AAA;font-size:16px;margin:4px 0;'>題材說明：{citem['desc']}</div>"
-                    f"<div style='color:#00D4AA;font-size:17px;font-weight:bold;'>"
+                    f"<div style='color:#AAA;font-size:18px;margin:4px 0;'>題材說明：{citem['desc']}</div>"
+                    f"<div style='color:#00D4AA;font-size:19px;font-weight:bold;'>"
                     f"📍 {stock_name} ({stock_code}) 在供應鏈中的定位：{citem['role']}"
                     f"</div>"
                     f"</div>",

@@ -33,7 +33,7 @@ importlib.reload(modules.ai_analysis)
 
 from modules.data_fetcher import (
     get_stock_info, get_price_history, get_financials,
-    get_daily_report_commentary_for_stock
+    get_daily_report_commentary_for_stock, build_business_and_profit_analysis
 )
 from modules.technical_analysis import (
     calculate_indicators, get_technical_score,
@@ -78,14 +78,14 @@ with col_input:
     raw_input = st.text_input(
         "🔍 輸入台股代號或中文股名",
         value=default_query,
-        placeholder="點此輸入：例如 5484、慧友、2330、台積電、穎崴",
+        placeholder="點此輸入：例如 2221、大甲、5484、慧友、2330、台積電",
         label_visibility="collapsed"
     )
 with col_btn:
     search_btn = st.button("🚀 立即分析", use_container_width=True)
 
 # 熱門速選晶片（手機左右滑動，點擊直達）
-quick_samples = [('2330', '台積電'), ('5484', '慧友'), ('6515', '穎崴'), ('2317', '鴻海'), ('2454', '聯發科'), ('2382', '廣達')]
+quick_samples = [('2330', '台積電'), ('2221', '大甲'), ('5484', '慧友'), ('6515', '穎崴'), ('2317', '鴻海'), ('2454', '聯發科'), ('2382', '廣達')]
 sample_chips = "".join([
     f'<a href="/?stock={qcode}" target="_self" class="stock-chip-link">'
     f'<span class="chip-code">{qcode}</span>{qname}</a>'
@@ -104,7 +104,7 @@ if search_btn or raw_input:
     stock_code = resolve_stock_query(raw_input)
     st.query_params['stock'] = stock_code
 
-    with st.spinner(f"正在載入台股 {stock_code} 完整基本面、技術面、籌碼面與財報資料..."):
+    with st.spinner(f"正在載入台股 {stock_code} 完整基本面、公司業務、技術面、籌碼面與財報資料..."):
         info       = get_stock_info(stock_code)
         df_price   = get_price_history(stock_code, period='1y')
         chip_df    = get_institutional_trend(stock_code, days=25)
@@ -112,6 +112,8 @@ if search_btn or raw_input:
         financials = get_financials(stock_code)
         concepts   = load_concept_data()
         report_cmt = get_daily_report_commentary_for_stock(stock_code)
+        concept_details = get_concept_details_for_stock(stock_code, concepts)
+        biz_analysis = build_business_and_profit_analysis(info, financials, report_cmt, concept_details)
 
     if df_price is None or df_price.empty:
         st.error(f"❌ 找不到台股代號「{raw_input}」（解析為 {stock_code}）的股價資料，請確認輸入的台股代號或中文名稱是否正確。")
@@ -162,9 +164,13 @@ if search_btn or raw_input:
         )
 
         stock_concepts = get_concept_tags_for_stock(stock_code, concepts)
-        if stock_concepts:
-            tags_html = "".join([f"<span class='concept-tag'>🏷️ {t}</span>" for t in stock_concepts])
-            st.markdown(f"<div style='margin-bottom:2px;'>{tags_html}</div>", unsafe_allow_html=True)
+        rel_ind_tags = [t for t in (biz_analysis.get('related_industries') or []) if t not in stock_concepts]
+        combined_badges = (
+            [f"<span class='concept-tag'>🏷️ {t}</span>" for t in stock_concepts] +
+            [f"<span class='concept-tag' style='background:rgba(56,189,248,0.14);border-color:#38BDF8;color:#7DD3FC;'>🏭 {t}</span>" for t in rel_ind_tags[:5]]
+        )
+        if combined_badges:
+            st.markdown(f"<div style='margin-bottom:2px; display:flex; flex-wrap:wrap; gap:4px;'>{''.join(combined_badges)}</div>", unsafe_allow_html=True)
 
     with col_watch:
         watchlist = load_watchlist()
@@ -184,7 +190,63 @@ if search_btn or raw_input:
     st.divider()
 
     # ══════════════════════════════════════════════════════════
-    # 2. 最前方：綜合評價（買進/賣出/等待）、建議價位、優缺點速覽
+    # 1.5 公司做什麼的？靠什麼賺錢？（一分鐘白話看懂卡片）
+    # ══════════════════════════════════════════════════════════
+    st.subheader(f"🏢 {stock_name} ({stock_code}) 是做什麼的？為什麼會賺錢？")
+
+    # 產品營收比重水平視覺條
+    rev_mix_items = biz_analysis.get('revenue_mix_items') or []
+    bar_colors = ['#00D4AA', '#38BDF8', '#F59E0B', '#EC4899', '#A855F7', '#94A3B8']
+    if rev_mix_items:
+        stacked_seg_html = "".join([
+            f"<div style='width:{max(2.0, it['pct'])}%; background:{bar_colors[i % len(bar_colors)]}; height:10px;' title='{it['name']} {it['pct']}%'></div>"
+            for i, it in enumerate(rev_mix_items)
+        ])
+        legend_pills_html = "".join([
+            f"<span style='display:inline-flex;align-items:center;gap:4px;font-size:12px;color:#E2E8F0;margin-right:10px;'>"
+            f"<span style='width:8px;height:8px;border-radius:50%;background:{bar_colors[i % len(bar_colors)]};display:inline-block;'></span>"
+            f"<b>{it['name']}</b> <span style='color:{bar_colors[i % len(bar_colors)]};font-weight:bold;'>{it['pct']:.2f}%</span></span>"
+            for i, it in enumerate(rev_mix_items)
+        ])
+        rev_mix_block = (
+            f"<div style='margin-top:8px; padding-top:8px; border-top:1px solid #263044;'>"
+            f"<div style='color:#94A3B8; font-size:12px; margin-bottom:4px;'>🥧 <b>靠什麼產品賺錢（主力營收比重結構）：</b></div>"
+            f"<div style='display:flex; width:100%; border-radius:6px; overflow:hidden; margin-bottom:6px; background:#1E293B;'>{stacked_seg_html}</div>"
+            f"<div style='display:flex; flex-wrap:wrap; gap:4px;'>{legend_pills_html}</div>"
+            f"</div>"
+        )
+    elif biz_analysis.get('revenue_mix_raw'):
+        rev_mix_block = (
+            f"<div style='margin-top:8px; padding-top:8px; border-top:1px solid #263044; font-size:13px;'>"
+            f"🥧 <b>主力營收比重：</b>{biz_analysis['revenue_mix_raw']}"
+            f"</div>"
+        )
+    else:
+        rev_mix_block = ""
+
+    why_profit_items_html = "".join([
+        f"<li style='margin:5px 0; line-height:1.55;'>{pt}</li>"
+        for pt in (biz_analysis.get('why_profitable') or [])
+    ])
+
+    st.markdown(
+        f"<div class='info-card' style='border-left:4px solid #00D4AA; padding:12px 14px; margin-bottom:8px;'>"
+        f"<div style='font-size:14px; line-height:1.6; color:#F8FAFC;'>"
+        f"🛠️ <b>公司核心業務（做什麼的）：</b>{biz_analysis.get('one_liner', '')}"
+        f"</div>"
+        f"{rev_mix_block}"
+        f"<div style='margin-top:8px; padding-top:8px; border-top:1px solid #263044;'>"
+        f"<div style='color:#FFD54F; font-weight:bold; font-size:13px; margin-bottom:4px;'>💰 為什麼會賺錢？近期獲利與成長動能白話解析：</div>"
+        f"<ul style='margin:0; padding-left:18px; font-size:13px; color:#E2E8F0;'>{why_profit_items_html}</ul>"
+        f"</div>"
+        f"</div>",
+        unsafe_allow_html=True
+    )
+
+    st.divider()
+
+    # ══════════════════════════════════════════════════════════
+    # 2. 綜合評價（買進/賣出/等待）、建議價位、優缺點速覽
     # ══════════════════════════════════════════════════════════
     st.subheader("🎯 綜合評價與操作建議")
 
@@ -419,57 +481,184 @@ if search_btn or raw_input:
 
     # ── Tab 3：💹 基本面與估值 ─────────────────────────────
     with tab3:
-        st.subheader(f"💹 {stock_name} ({stock_code}) 基本面與估值分析")
+        st.subheader(f"💹 {stock_name} ({stock_code}) 基本面、核心業務與獲利原因分析")
 
+        # 1. 公司核心業務、相關產業與產品營收比重詳解
+        main_biz_list = biz_analysis.get('main_business') or []
+        rel_inds_list = biz_analysis.get('related_industries') or []
+        rev_items = biz_analysis.get('revenue_mix_items') or []
+
+        col_biz, col_rev = st.columns([1.3, 1.7])
+        with col_biz:
+            biz_bullets = "".join([f"<li style='margin:4px 0;'>{b}</li>" for b in main_biz_list]) if main_biz_list else f"<li>{biz_analysis.get('one_liner', '')}</li>"
+            ind_badges = "".join([
+                f"<span class='concept-tag' style='background:rgba(0,212,170,0.14);border-color:#00D4AA;color:#00D4AA;margin:2px 4px 2px 0;display:inline-block;'>🏭 {ind}</span>"
+                for ind in rel_inds_list
+            ])
+            st.markdown(
+                f"<div class='info-card' style='height:100%;'>"
+                f"<div style='color:#00D4AA;font-weight:bold;font-size:14px;margin-bottom:6px;'>🛠️ 公司是做什麼的？（主要經營業務）</div>"
+                f"<ul style='margin:0 0 10px 0;padding-left:18px;font-size:13px;line-height:1.6;color:#F8FAFC;'>{biz_bullets}</ul>"
+                f"<div style='color:#38BDF8;font-weight:bold;font-size:13px;margin-bottom:4px;'>🔗 相關細分產業與終端應用領域：</div>"
+                f"<div>{ind_badges if ind_badges else sector_str}</div>"
+                f"</div>",
+                unsafe_allow_html=True
+            )
+
+        with col_rev:
+            if rev_items:
+                bar_colors = ['#00D4AA', '#38BDF8', '#F59E0B', '#EC4899', '#A855F7', '#94A3B8']
+                rows_html = ""
+                for idx_r, it in enumerate(rev_items):
+                    c_hex = bar_colors[idx_r % len(bar_colors)]
+                    pct_v = max(0.0, min(100.0, float(it['pct'])))
+                    rows_html += (
+                        f"<div style='margin-bottom:8px;'>"
+                        f"<div style='display:flex;justify-content:space-between;font-size:13px;margin-bottom:2px;'>"
+                        f"<span style='color:#F8FAFC;font-weight:bold;'>{it['name']}</span>"
+                        f"<span style='color:{c_hex};font-weight:bold;'>{pct_v:.2f}%</span>"
+                        f"</div>"
+                        f"<div style='width:100%;background:#1E293B;height:8px;border-radius:4px;overflow:hidden;'>"
+                        f"<div style='width:{pct_v}%;background:{c_hex};height:8px;border-radius:4px;'></div>"
+                        f"</div>"
+                        f"</div>"
+                    )
+                st.markdown(
+                    f"<div class='info-card' style='height:100%;'>"
+                    f"<div style='color:#FFD54F;font-weight:bold;font-size:14px;margin-bottom:8px;'>🥧 靠什麼賺錢？（主力產品營收比重結構）</div>"
+                    f"{rows_html}"
+                    f"<div style='color:#94A3B8;font-size:11px;margin-top:4px;'>原始比重：{biz_analysis.get('revenue_mix_raw', '')}</div>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
+            else:
+                st.markdown(
+                    f"<div class='info-card'>"
+                    f"<div style='color:#FFD54F;font-weight:bold;font-size:14px;margin-bottom:6px;'>🥧 靠什麼賺錢？（業務結構）</div>"
+                    f"<div style='font-size:13px;line-height:1.6;'>{biz_analysis.get('one_liner', '')}</div>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
+
+        # 2. 為什麼會賺錢？近期獲利動能與重要財報/自結公告
+        why_html = "".join([f"<li style='margin:6px 0;line-height:1.6;'>{w}</li>" for w in (biz_analysis.get('why_profitable') or [])])
+        st.markdown(
+            f"<div class='info-card' style='border-left:4px solid #FFD54F; margin-top:6px;'>"
+            f"<div style='color:#FFD54F;font-weight:bold;font-size:15px;margin-bottom:6px;'>💰 為什麼會賺錢？本業獲利模式與近期成長動能深度白話解析</div>"
+            f"<ul style='margin:0;padding-left:18px;font-size:13.5px;color:#F8FAFC;'>{why_html}</ul>"
+            f"</div>",
+            unsafe_allow_html=True
+        )
+
+        # 3. 估值與財務體質八大核心指標卡片
+        st.markdown("#### 📊 估值水準與本業獲利體質指標（含同業比較）")
         pe  = info.get('pe')
+        ind_pe = info.get('industry_avg_pe')
         pb  = info.get('pb')
+        nav = info.get('net_worth_per_share')
         div = info.get('dividend_yield')
+        cdiv = info.get('cash_dividend')
         mc  = info.get('market_cap')
+        cap_yi = info.get('capital_yi')
         h52 = info.get('52w_high')
         l52 = info.get('52w_low')
 
-        # 估值指標卡片
+        # 第一排：四大估值指標
         v1, v2, v3, v4 = st.columns(4)
         with v1:
             pe_status = "合理區間"
             if pe:
-                pe_status = "估值偏低（便宜）" if pe < 15 else ("估值偏高（成長預期）" if pe > 35 else "歷史合理區間")
+                pe_status = "估值偏低（便宜）" if pe < 15 else ("高成長預期溢價" if pe > 35 else "歷史合理區間")
+            ind_pe_txt = f"同業平均：{ind_pe:.1f} 倍" if ind_pe else f"判讀：{pe_status}"
             st.markdown(
                 f"<div class='info-card'>"
-                f"<div style='color:#94A3B8;font-size:13px;'>本益比 (PE Ratio)</div>"
-                f"<div style='font-size:24px;font-weight:bold;color:#00D4AA;margin:4px 0;'>{f'{pe:.2f} 倍' if pe else '無資料 (虧損或未公布)'}</div>"
-                f"<div style='font-size:12px;color:#AAA;'>判讀：{pe_status}</div>"
+                f"<div style='color:#94A3B8;font-size:12px;'>本益比 (PE Ratio)</div>"
+                f"<div style='font-size:22px;font-weight:bold;color:#00D4AA;margin:4px 0;'>{f'{pe:.2f} 倍' if pe else '無資料 (虧損或未公布)'}</div>"
+                f"<div style='font-size:12px;color:#AAA;'>{ind_pe_txt}（{pe_status}）</div>"
                 f"</div>",
                 unsafe_allow_html=True
             )
         with v2:
-            pb_status = "股價低於淨值" if (pb and pb < 1) else ("正常水準" if (pb and pb < 3) else "高溢價倍數")
+            pb_status = "股價低於淨值" if (pb and pb < 1) else ("正常水準" if (pb and pb < 3) else "高獲利溢價倍數")
+            nav_txt = f"每股淨值：{nav:.2f} 元" if nav else f"判讀：{pb_status if pb else '—'}"
             st.markdown(
                 f"<div class='info-card'>"
-                f"<div style='color:#94A3B8;font-size:13px;'>股價淨值比 (PB Ratio)</div>"
-                f"<div style='font-size:24px;font-weight:bold;color:#38BDF8;margin:4px 0;'>{f'{pb:.2f} 倍' if pb else 'N/A'}</div>"
-                f"<div style='font-size:12px;color:#AAA;'>判讀：{pb_status if pb else '—'}</div>"
+                f"<div style='color:#94A3B8;font-size:12px;'>股價淨值比 (PB Ratio)</div>"
+                f"<div style='font-size:22px;font-weight:bold;color:#38BDF8;margin:4px 0;'>{f'{pb:.2f} 倍' if pb else 'N/A'}</div>"
+                f"<div style='font-size:12px;color:#AAA;'>{nav_txt}</div>"
                 f"</div>",
                 unsafe_allow_html=True
             )
         with v3:
             div_pct = div * 100 if div is not None else 0.0
-            div_status = "高殖利率防禦股 🔥" if div_pct >= 4.5 else ("具配息能力" if div_pct > 0 else "以資本利得為主")
+            div_status = "高殖利率防禦股 🔥" if div_pct >= 4.5 else ("具穩定配息能力" if div_pct > 0 else "以資本利得為主")
+            cdiv_txt = f"現金股利：{cdiv:.2f} 元" if cdiv else f"判讀：{div_status}"
             st.markdown(
                 f"<div class='info-card'>"
-                f"<div style='color:#94A3B8;font-size:13px;'>現金殖利率 (Yield)</div>"
-                f"<div style='font-size:24px;font-weight:bold;color:#FFD54F;margin:4px 0;'>{f'{div_pct:.2f}%' if div is not None else 'N/A'}</div>"
-                f"<div style='font-size:12px;color:#AAA;'>判讀：{div_status}</div>"
+                f"<div style='color:#94A3B8;font-size:12px;'>現金殖利率 (Yield)</div>"
+                f"<div style='font-size:22px;font-weight:bold;color:#FFD54F;margin:4px 0;'>{f'{div_pct:.2f}%' if div is not None else 'N/A'}</div>"
+                f"<div style='font-size:12px;color:#AAA;'>{cdiv_txt}</div>"
                 f"</div>",
                 unsafe_allow_html=True
             )
         with v4:
             mc_str = f"NT$ {mc/1e8:,.1f} 億" if mc else "N/A"
+            cap_txt = f"股本：{cap_yi:.2f} 億 ｜ " if cap_yi else ""
             st.markdown(
                 f"<div class='info-card'>"
-                f"<div style='color:#94A3B8;font-size:13px;'>公司總市值</div>"
-                f"<div style='font-size:24px;font-weight:bold;color:#FAFAFA;margin:4px 0;'>{mc_str}</div>"
-                f"<div style='font-size:12px;color:#AAA;'>一年高低：{f'{l52:,.1f} ~ {h52:,.1f} 元' if (h52 and l52) else '—'}</div>"
+                f"<div style='color:#94A3B8;font-size:12px;'>公司總市值與股本</div>"
+                f"<div style='font-size:22px;font-weight:bold;color:#FAFAFA;margin:4px 0;'>{mc_str}</div>"
+                f"<div style='font-size:12px;color:#AAA;'>{cap_txt}一年高低：{f'{l52:,.1f}~{h52:,.1f}' if (h52 and l52) else '—'}</div>"
+                f"</div>",
+                unsafe_allow_html=True
+            )
+
+        # 第二排：四大獲利能力與股權體質指標
+        gm_v = info.get('gross_margin')
+        om_v = info.get('operating_margin')
+        roe_v = info.get('roe')
+        dh_v = info.get('director_holding_pct')
+        debt_v = info.get('debt_ratio_pct')
+
+        p1, p2, p3, p4 = st.columns(4)
+        with p1:
+            gm_str = f"{gm_v*100:.2f}%" if gm_v is not None else "N/A"
+            st.markdown(
+                f"<div class='info-card'>"
+                f"<div style='color:#94A3B8;font-size:12px;'>營業毛利率（產品競爭力）</div>"
+                f"<div style='font-size:20px;font-weight:bold;color:#FF8A80;margin:4px 0;'>{gm_str}</div>"
+                f"<div style='font-size:11px;color:#AAA;'>毛利率越高代表產品附加價值與定價權越強</div>"
+                f"</div>",
+                unsafe_allow_html=True
+            )
+        with p2:
+            om_str = f"{om_v*100:.2f}%" if om_v is not None else "N/A"
+            st.markdown(
+                f"<div class='info-card'>"
+                f"<div style='color:#94A3B8;font-size:12px;'>營業利益率（本業實賺率）</div>"
+                f"<div style='font-size:20px;font-weight:bold;color:#FF8A80;margin:4px 0;'>{om_str}</div>"
+                f"<div style='font-size:11px;color:#AAA;'>扣除管銷研發費用後，本業每百元營收實賺比例</div>"
+                f"</div>",
+                unsafe_allow_html=True
+            )
+        with p3:
+            roe_str = f"{roe_v*100:.2f}%" if roe_v is not None else "N/A"
+            st.markdown(
+                f"<div class='info-card'>"
+                f"<div style='color:#94A3B8;font-size:12px;'>股東權益報酬率 (ROE)</div>"
+                f"<div style='font-size:20px;font-weight:bold;color:#A78BFA;margin:4px 0;'>{roe_str}</div>"
+                f"<div style='font-size:11px;color:#AAA;'>衡量公司替股東資金創造獲利的效率</div>"
+                f"</div>",
+                unsafe_allow_html=True
+            )
+        with p4:
+            dh_str = f"{dh_v:.2f}%" if dh_v is not None else "N/A"
+            debt_txt = f"負債比例：{debt_v:.1f}%" if debt_v is not None else "大股東籌碼集中度指標"
+            st.markdown(
+                f"<div class='info-card'>"
+                f"<div style='color:#94A3B8;font-size:12px;'>董監事持股比例（大股東信心）</div>"
+                f"<div style='font-size:20px;font-weight:bold;color:#34D399;margin:4px 0;'>{dh_str}</div>"
+                f"<div style='font-size:11px;color:#AAA;'>{debt_txt}</div>"
                 f"</div>",
                 unsafe_allow_html=True
             )
@@ -479,6 +668,18 @@ if search_btn or raw_input:
             pos_pct = max(0.0, min(1.0, (latest_close - l52) / (h52 - l52)))
             st.markdown(f"**📏 近一年（52週）股價位階：{pos_pct*100:.1f}%**（最低 `NT$ {l52:,.2f}` ── 目前 `NT$ {latest_close:,.2f}` ── 最高 `NT$ {h52:,.2f}`）")
             st.progress(pos_pct)
+
+        # 近期公司重要獲利/營收/動態新聞公告
+        recent_news_list = biz_analysis.get('recent_news') or []
+        if recent_news_list:
+            st.markdown("#### 📢 近期公司重要營收、自結獲利與重大公告")
+            news_items_html = "".join([f"<li style='margin:4px 0;'>{n}</li>" for n in recent_news_list])
+            st.markdown(
+                f"<div class='info-card' style='border-left:4px solid #38BDF8;'>"
+                f"<ul style='margin:0;padding-left:18px;font-size:13px;line-height:1.65;color:#E2E8F0;'>{news_items_html}</ul>"
+                f"</div>",
+                unsafe_allow_html=True
+            )
 
         # 若盤後報告有收錄此股，顯示報告中的深度評語
         if report_cmt and report_cmt.get('lines'):
@@ -534,7 +735,7 @@ if search_btn or raw_input:
     # ── Tab 5：🤖 AI 深度評語 ──────────────────────────────
     with tab5:
         st.subheader(f"🤖 Gemini 3.8 Flash — {stock_name} ({stock_code}) 深度操盤報告")
-        st.caption("結合即時技術指標、三大法人籌碼、月營收 YoY 與季度 EPS，由 Google Gemini 3.8 Flash 進行專業研判")
+        st.caption("結合即時技術指標、三大法人籌碼、公司主要業務、營收比重、月營收 YoY 與季度 EPS，由 Google Gemini 3.8 Flash 進行專業研判")
 
         # 檢查是否已有快取的 AI 分析報告
         cache_ai_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'cache', f"ai_analysis_{stock_code}.json")
@@ -549,7 +750,7 @@ if search_btn or raw_input:
                 except Exception:
                     pass
 
-            with st.spinner(f"🤖 Gemini 3.8 Flash 正在深入分析 {stock_name} ({stock_code}) 的技術、籌碼與財報數據..."):
+            with st.spinner(f"🤖 Gemini 3.8 Flash 正在深入分析 {stock_name} ({stock_code}) 的業務、技術、籌碼與財報數據..."):
                 tech_summary_payload = {
                     '最新收盤價': latest_close,
                     '漲跌幅': f"{pct_change:+.2f}%",
@@ -564,7 +765,12 @@ if search_btn or raw_input:
                 fundamental_payload = {
                     '中文股名': stock_name,
                     '市場與產業': f"{market_str} - {sector_str}",
+                    '主要經營業務': biz_analysis.get('main_business'),
+                    '產品營收比重': biz_analysis.get('revenue_mix_raw'),
+                    '相關細分產業與應用': biz_analysis.get('related_industries'),
+                    '近期重要新聞與自結公告': (biz_analysis.get('recent_news') or [])[:4],
                     '本益比PE': info.get('pe'),
+                    '同業平均本益比': info.get('industry_avg_pe'),
                     '淨值比PB': info.get('pb'),
                     '殖利率': f"{info.get('dividend_yield')*100:.2f}%" if info.get('dividend_yield') else '無',
                     '52週高點': info.get('52w_high'),
@@ -633,15 +839,17 @@ if search_btn or raw_input:
     with tab6:
         st.subheader(f"🏭 {stock_name} ({stock_code}) 產業鏈定位與同業競爭公司")
 
+        rel_inds_str = " / ".join(biz_analysis.get('related_industries') or []) or sector_str
         st.markdown(
             f"<div class='info-card'>"
-            f"<b>📌 官方產業分類：</b> <span style='color:#00D4AA;font-weight:bold;'>{market_str} — {sector_str}</span>"
+            f"<div style='margin-bottom:4px;'><b>📌 官方掛牌分類：</b> <span style='color:#00D4AA;font-weight:bold;'>{market_str} — {info.get('official_sector', sector_str)}</span></div>"
+            f"<div style='margin-bottom:4px;'><b>🔍 實際細分產業與應用領域：</b> <span style='color:#38BDF8;font-weight:bold;'>{rel_inds_str}</span></div>"
+            f"<div><b>🛠️ 主要經營業務：</b> <span style='color:#E2E8F0;'>{'；'.join(biz_analysis.get('main_business') or []) or biz_analysis.get('one_liner', '')}</span></div>"
             f"</div>",
             unsafe_allow_html=True
         )
 
         # 1. 概念股供應鏈角色與夥伴
-        concept_details = get_concept_details_for_stock(stock_code, concepts)
         if concept_details:
             st.markdown("#### 🔗 所屬熱門題材與供應鏈角色")
             for citem in concept_details:
@@ -674,7 +882,7 @@ if search_btn or raw_input:
         # 2. 同產業競爭/相關公司（自動從台股 3,149 檔資料庫比對）
         peers = get_peer_stocks(stock_code, limit=12)
         if peers:
-            st.markdown(f"#### 🏢 同產業（{sector_str}）相關與競爭公司")
+            st.markdown(f"#### 🏢 同分類（{info.get('official_sector', sector_str)}）其他上市櫃公司")
             st.caption("點擊任一同業公司按鈕，即可跳轉比較基本面與技術面：")
             p_cols = st.columns(6)
             for idx, peer in enumerate(peers):
@@ -694,11 +902,11 @@ if search_btn or raw_input:
                 try:
                     model = get_gemini_model()
                     chain_prompt = f"""
-請以台灣股市產業研究員的角度，用繁體中文詳細整理台股「{stock_code} {stock_name}」（所屬產業：{sector_str}）的產業生態系：
-1. **公司核心業務與主力產品**：用白話文介紹這家公司主要靠什麼賺錢？
+請以台灣股市產業研究員的角度，用繁體中文詳細整理台股「{stock_code} {stock_name}」（所屬細分產業：{rel_inds_str}；主要業務：{'、'.join(biz_analysis.get('main_business') or [])}；產品營收比重：{biz_analysis.get('revenue_mix_raw', '')}）的產業生態系：
+1. **公司核心業務與主力產品**：用白話文介紹這家公司主要靠什麼賺錢？為什麼它的產品具有競爭力？
 2. **上游供應商**：主要原料、晶片或零組件來源有哪些（請列出代表性台股或國際廠商）？
 3. **中游製造/核心技術**：公司在產業鏈中的位置與優勢？
-4. **下游客戶與應用領域**：產品賣給誰？主要應用在哪些終端產業（如 AI、車用、安控、半導體等）？
+4. **下游客戶與應用領域**：產品賣給誰？主要應用在哪些終端產業（如半導體擴廠、AI、車用、安控等）？
 5. **主要競爭對手（台股與國際）**：有哪些直接競爭的同業公司（請附上台股代號）？
 """
                     resp = model.generate_content(chain_prompt)
@@ -708,3 +916,4 @@ if search_btn or raw_input:
                     )
                 except Exception as e:
                     st.error(f"產業鏈分析產生失敗：{e}")
+

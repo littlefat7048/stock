@@ -509,7 +509,8 @@ if search_btn or raw_input:
                             sensitivity=t1_sens
                         ),
                         use_container_width=True,
-                        config=PLOTLY_CFG
+                        config=PLOTLY_CFG,
+                        key="t1_mofi_chart"
                     )
 
             sub_col1, sub_col2 = st.columns(2)
@@ -639,7 +640,8 @@ if search_btn or raw_input:
                             sensitivity=t2_sens
                         ),
                         use_container_width=True,
-                        config=PLOTLY_CFG
+                        config=PLOTLY_CFG,
+                        key="t2_mofi_chart"
                     )
 
             # 2. 頂部傳統籌碼統計卡片

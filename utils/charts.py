@@ -16,12 +16,34 @@ DOWN_COLOR = '#43a047'
 GRID_COLOR = '#2A324B'
 
 
-def _apply_dark_layout(fig, bottom_margin=100, top_margin=54, legend_y=-0.24, is_date_x=True):
+def _get_dt_rangebreaks(df_index):
+    """
+    計算所有非交易日（週末、國定假日、颱風休市），將其從 X 軸剔除，
+    讓 K 線完全連續接續，絕不留下空白非交易日！
+    """
+    if df_index is None or len(df_index) < 2:
+        return [dict(bounds=["sat", "mon"])]
+    try:
+        ts = pd.to_datetime(df_index)
+        if getattr(ts, 'tz', None) is not None:
+            ts = ts.tz_convert('Asia/Taipei').tz_localize(None)
+        trading_days = set(ts.strftime('%Y-%m-%d'))
+        full_range = pd.date_range(start=ts.min(), end=ts.max(), freq='D')
+        missing = [d.strftime('%Y-%m-%d') for d in full_range if d.strftime('%Y-%m-%d') not in trading_days]
+        if missing:
+            return [dict(values=missing)]
+        return [dict(bounds=["sat", "mon"])]
+    except Exception:
+        return [dict(bounds=["sat", "mon"])]
+
+
+def _apply_dark_layout(fig, bottom_margin=100, top_margin=54, legend_y=-0.24, is_date_x=True, df_index=None):
     """
     統一深色主題佈局：
     1. 隱藏右上角懸浮工具列 (displayModeBar=False)，避免遮住右上角標題與K線（雙指縮放與連點還原仍完全保留）。
     2. 日期橫軸統一改為單行『MM/DD』(例如 09/06、09/20)，消除原本兩行英文『Sep 6 \\n 2026』向下撞到圖例的問題！
     3. 加大底部留白與圖例距離 (legend_y)，確保圖例在任何螢幕高度下都絕不與橫軸文字重疊。
+    4. 自動剔除非交易日（週末與休市），K 線緊密相連無空白斷層！
     """
     layout_kwargs = dict(
         template='plotly_dark',
@@ -62,6 +84,8 @@ def _apply_dark_layout(fig, bottom_margin=100, top_margin=54, legend_y=-0.24, is
     )
     if is_date_x:
         xaxis_kwargs['tickformat'] = '%m/%d'
+        if df_index is not None:
+            xaxis_kwargs['rangebreaks'] = _get_dt_rangebreaks(df_index)
 
     fig.update_xaxes(**xaxis_kwargs)
     fig.update_yaxes(
@@ -81,7 +105,7 @@ def create_candlestick_chart(df, selected_mas=['MA5', 'MA20', 'MA60']):
     fig = make_subplots(
         rows=2, cols=1, shared_xaxes=True,
         vertical_spacing=0.10,
-        subplot_titles=('股價 K 線與均線走勢（紅漲綠跌）', '成交量（股）'),
+        subplot_titles=('股價 K 線與均線走勢（紅漲綠跌）', '成交量（張）'),
         row_width=[0.26, 0.74]
     )
 
@@ -109,16 +133,18 @@ def create_candlestick_chart(df, selected_mas=['MA5', 'MA20', 'MA60']):
                 hovertemplate=f"%{{x|%m/%d}}｜{ma}: <b>%{{y:.2f}}</b><extra></extra>"
             ), row=1, col=1)
 
+    # 成交量轉換為「張」（每張 = 1,000 股），單位直覺且符合台股慣例
+    vol_lots = [round(float(v) / 1000.0, 1) for v in df['Volume']]
     volume_colors = [UP_COLOR if row['Close'] >= row['Open'] else DOWN_COLOR for _, row in df.iterrows()]
     fig.add_trace(go.Bar(
-        x=df.index, y=df['Volume'],
+        x=df.index, y=vol_lots,
         marker_color=volume_colors,
-        name='成交量',
-        hovertemplate="%{x|%m/%d}｜量: <b>%{y:,.0f} 股</b><extra></extra>"
+        name='成交量(張)',
+        hovertemplate="%{x|%m/%d}｜量: <b>%{y:,.0f} 張</b><extra></extra>"
     ), row=2, col=1)
 
     fig.update_layout(xaxis_rangeslider_visible=False, height=620)
-    return _apply_dark_layout(fig, bottom_margin=96, top_margin=44, legend_y=-0.16, is_date_x=True)
+    return _apply_dark_layout(fig, bottom_margin=96, top_margin=44, legend_y=-0.16, is_date_x=True, df_index=df.index)
 
 
 def create_macd_chart(df):
@@ -138,7 +164,7 @@ def create_macd_chart(df):
             hovertemplate="%{x|%m/%d}｜MACD: <b>%{y:.2f}</b><extra></extra>"
         ))
     fig.update_layout(height=350, title_text='MACD 動能指標')
-    return _apply_dark_layout(fig, bottom_margin=98, top_margin=50, legend_y=-0.28, is_date_x=True)
+    return _apply_dark_layout(fig, bottom_margin=98, top_margin=50, legend_y=-0.28, is_date_x=True, df_index=df.index)
 
 
 def create_kd_chart(df):
@@ -155,7 +181,7 @@ def create_kd_chart(df):
         fig.add_hline(y=80, line_dash="dash", line_color=UP_COLOR)
         fig.add_hline(y=20, line_dash="dash", line_color=DOWN_COLOR)
     fig.update_layout(height=350, title_text='KD 隨機指標（80超買 / 20超賣）')
-    return _apply_dark_layout(fig, bottom_margin=98, top_margin=50, legend_y=-0.28, is_date_x=True)
+    return _apply_dark_layout(fig, bottom_margin=98, top_margin=50, legend_y=-0.28, is_date_x=True, df_index=df.index)
 
 
 def create_rsi_chart(df):
@@ -169,7 +195,7 @@ def create_rsi_chart(df):
         fig.add_hline(y=50, line_dash="dot", line_color="#888888")
         fig.add_hline(y=30, line_dash="dash", line_color=DOWN_COLOR)
     fig.update_layout(height=350, title_text='RSI 相對強弱指標（70超買 / 30超賣）')
-    return _apply_dark_layout(fig, bottom_margin=98, top_margin=50, legend_y=-0.28, is_date_x=True)
+    return _apply_dark_layout(fig, bottom_margin=98, top_margin=50, legend_y=-0.28, is_date_x=True, df_index=df.index)
 
 
 def create_institutional_chart(data, days=25):
@@ -202,7 +228,7 @@ def create_institutional_chart(data, days=25):
 
     fig.add_hline(y=0, line_color='#FFFFFF', line_width=1)
     fig.update_layout(barmode='relative', height=430, title_text='三大法人每日買賣超明細（單位：張）')
-    return _apply_dark_layout(fig, bottom_margin=102, top_margin=52, legend_y=-0.25, is_date_x=True)
+    return _apply_dark_layout(fig, bottom_margin=102, top_margin=52, legend_y=-0.25, is_date_x=True, df_index=data.index)
 
 
 def create_mofi_institutional_force_chart(mofi_df, investor_type='三大法人', denom_mode='佔股本比', sensitivity=2.0):
@@ -310,7 +336,7 @@ def create_mofi_institutional_force_chart(mofi_df, investor_type='三大法人',
     fig.add_hline(y=0, line_color='#64748B', line_width=1, line_dash='dot')
     title_str = f"法人力度 (2026 版)｜{investor_type} × {denom_mode}{sub_label}"
     fig.update_layout(height=410, title_text=title_str)
-    fig = _apply_dark_layout(fig, bottom_margin=100, top_margin=52, legend_y=-0.22, is_date_x=True)
+    fig = _apply_dark_layout(fig, bottom_margin=100, top_margin=52, legend_y=-0.22, is_date_x=True, df_index=mofi_df.index)
     fig.update_layout(
         yaxis=dict(side='right', ticksuffix='%', fixedrange=True, gridcolor=GRID_COLOR, tickfont=dict(size=13)),
         plot_bgcolor='#080B10',
@@ -340,7 +366,7 @@ def create_margin_chart(data):
             ), secondary_y=True)
 
     fig.update_layout(height=420, title_text='融資與融券餘額趨勢（單位：張）')
-    return _apply_dark_layout(fig, bottom_margin=102, top_margin=52, legend_y=-0.25, is_date_x=True)
+    return _apply_dark_layout(fig, bottom_margin=102, top_margin=52, legend_y=-0.25, is_date_x=True, df_index=data.index)
 
 
 def create_eps_chart(quarterly_df):

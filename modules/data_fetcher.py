@@ -719,17 +719,65 @@ def build_business_and_profit_analysis(
 
 
 def get_price_history(code: str, period: str = '1y', interval: str = '1d') -> pd.DataFrame:
-    """取得歷史 K 線 OHLCV DataFrame"""
+    """取得歷史 K 線 OHLCV DataFrame（含自動修復 yfinance 缺漏或 NaN 當日 K 棒之雙保險機制）"""
     ticker = normalize_ticker(code)
+    df = None
     try:
         tk = yf.Ticker(ticker)
         df = tk.history(period=period, interval=interval)
-        if df is not None and not df.empty:
-            return df
     except Exception as e:
         print(f"Error fetching price history for {code}: {e}")
 
-    # 備用：若 yfinance 失敗，從 FinMind 抓日 K
+    # 雙保險機制：若 yfinance 抓到的資料有 NaN（常見於當日剛收盤未結算完畢），或延遲尚未抓到最新交易日，自動由 FinMind 補齊正確價格
+    if df is not None and not df.empty:
+        try:
+            start_d = (datetime.now() - timedelta(days=15)).strftime('%Y-%m-%d')
+            r = requests.get(
+                FINMIND_URL,
+                params={'dataset': 'TaiwanStockPrice', 'data_id': str(code).strip(), 'start_date': start_d},
+                timeout=6
+            )
+            f_rows = r.json().get('data', [])
+            if f_rows:
+                f_map = {r['date']: r for r in f_rows}
+                nan_mask = df[['Open', 'High', 'Low', 'Close']].isna().any(axis=1)
+                if nan_mask.any():
+                    for dt, row in df[nan_mask].iterrows():
+                        d_str = dt.strftime('%Y-%m-%d')
+                        if d_str in f_map:
+                            f = f_map[d_str]
+                            df.loc[dt, 'Open'] = float(f['open'])
+                            df.loc[dt, 'High'] = float(f['max'])
+                            df.loc[dt, 'Low'] = float(f['min'])
+                            df.loc[dt, 'Close'] = float(f['close'])
+                            if float(f.get('Trading_Volume', 0)) > 0:
+                                df.loc[dt, 'Volume'] = float(f['Trading_Volume'])
+
+                # 若 FinMind 有比 yfinance 更即時的最新交易日資料，自動追加
+                latest_f = f_rows[-1]
+                latest_f_date = str(latest_f.get('date', ''))
+                max_df_date = df.index.max().strftime('%Y-%m-%d')
+                if latest_f_date > max_df_date and float(latest_f.get('close', 0)) > 0:
+                    tz_info = getattr(df.index, 'tz', None)
+                    new_idx = pd.to_datetime(latest_f_date).tz_localize(tz_info) if tz_info is not None else pd.to_datetime(latest_f_date)
+                    new_row = pd.DataFrame([{
+                        'Open': float(latest_f['open']),
+                        'High': float(latest_f['max']),
+                        'Low': float(latest_f['min']),
+                        'Close': float(latest_f['close']),
+                        'Volume': float(latest_f.get('Trading_Volume', 0))
+                    }], index=[new_idx])
+                    df = pd.concat([df, new_row])
+        except Exception as e:
+            print(f"FinMind patch error for {code}: {e}")
+
+        # 徹底清除仍為空值或無效價值的列，確保量價絕對齊全
+        df = df.dropna(subset=['Open', 'High', 'Low', 'Close'])
+        df = df[df['Close'] > 0]
+        if not df.empty:
+            return df
+
+    # 備用：若 yfinance 完全無資料，直接從 FinMind 抓歷史日 K
     try:
         start_d = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
         r = requests.get(
@@ -746,6 +794,8 @@ def get_price_history(code: str, period: str = '1y', interval: str = '1d') -> pd
                 'open': 'Open', 'max': 'High', 'min': 'Low',
                 'close': 'Close', 'Trading_Volume': 'Volume'
             }, inplace=True)
+            df = df.dropna(subset=['Open', 'High', 'Low', 'Close'])
+            df = df[df['Close'] > 0]
             return df[['Open', 'High', 'Low', 'Close', 'Volume']]
     except Exception:
         pass

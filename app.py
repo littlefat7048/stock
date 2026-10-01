@@ -135,7 +135,7 @@ with st.sidebar:
 
 # ── 主頁面標題與快速查股框 ────────────────────────────────
 st.title("📊 台股每日盤後分析報告")
-st.caption(f"資料來源：7388chichi.pages.dev | 選取日期：{selected_date[:4]}/{selected_date[4:6]}/{selected_date[6:]}")
+st.caption(f"選取報告日期：{selected_date[:4]}/{selected_date[4:6]}/{selected_date[6:]} ｜ 每日盤後定時自動同步")
 
 st.markdown("<div style='font-size:18px; font-weight:bold; color:#00D4AA; margin-top:4px; margin-bottom:2px;'>🔍 直接輸入台股代號或中文股名查詢：</div>", unsafe_allow_html=True)
 hc1, hc2 = st.columns([3.6, 1.4])

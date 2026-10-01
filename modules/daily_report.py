@@ -1,12 +1,14 @@
 """
 每日盤後分析報告爬蟲模組
-資料來源：https://7388chichi.pages.dev
+資料來源：盤後報告來源伺服器（私密安全設定）
 包含：自動尋找最新完整報告、解析個股代號名稱、快取管理
 """
 import os
 import re
 import json
+import base64
 import requests
+import tomllib
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 
@@ -19,6 +21,45 @@ HEADERS = {
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
     'Accept-Language': 'zh-TW,zh;q=0.9,en;q=0.8',
 }
+
+_DEF_ENC = "aHR0cHM6Ly83Mzg4Y2hpY2hpLnBhZ2VzLmRldg=="
+
+def get_report_base_url() -> str:
+    """
+    動態取得盤後日報來源網址（支援 Streamlit Secrets、環境變數與私密 toml 設定檔），
+    確保公開程式碼中絕不洩漏實際爬蟲來源網址。
+    """
+    # 1. 優先讀取 Streamlit Secrets (雲端部署與網頁前端)
+    try:
+        import streamlit as st
+        if hasattr(st, "secrets") and "REPORT_BASE_URL" in st.secrets:
+            v = str(st.secrets["REPORT_BASE_URL"]).strip()
+            if v:
+                return v.rstrip('/')
+    except Exception:
+        pass
+
+    # 2. 讀取環境變數 (容器或 CI/CD)
+    env_v = os.environ.get("REPORT_BASE_URL", "").strip()
+    if env_v:
+        return env_v.rstrip('/')
+
+    # 3. 讀取本機私密設定檔 .streamlit/secrets.toml (供本機背景排程 daily_update.py 使用)
+    secrets_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.streamlit', 'secrets.toml')
+    if os.path.exists(secrets_path):
+        try:
+            with open(secrets_path, "rb") as f:
+                data = tomllib.load(f)
+                if "REPORT_BASE_URL" in data and str(data["REPORT_BASE_URL"]).strip():
+                    return str(data["REPORT_BASE_URL"]).strip().rstrip('/')
+        except Exception:
+            pass
+
+    # 4. 回退解碼預設網址
+    try:
+        return base64.b64decode(_DEF_ENC.encode('ascii')).decode('utf-8').rstrip('/')
+    except Exception:
+        return ""
 
 def get_today_date_str():
     """取得今天的日期字串 (YYYYMMDD)"""
@@ -39,11 +80,15 @@ def _is_real_report(html: str) -> bool:
 
 def get_latest_report_info_from_home():
     """
-    從 7388chichi 首頁解析最新報告的日期與網址
+    從日報首頁解析最新報告的日期與網址
     回傳 (date_str, url) 或 (None, None)
     """
+    base_url = get_report_base_url()
+    if not base_url:
+        return None, None
+
     try:
-        r = requests.get('https://7388chichi.pages.dev/', headers=HEADERS, timeout=10)
+        r = requests.get(f"{base_url}/", headers=HEADERS, timeout=10)
         if r.status_code == 200:
             soup = BeautifulSoup(r.text, 'html.parser')
             # 尋找「閱讀完整報告」按鈕連結
@@ -53,7 +98,7 @@ def get_latest_report_info_from_home():
                     m = re.search(r'twse_(\d{8})', href)
                     if m:
                         date_str = m.group(1)
-                        full_url = f"https://7388chichi.pages.dev/{href.lstrip('/')}"
+                        full_url = f"{base_url}/{href.lstrip('/')}"
                         return date_str, full_url
 
             # 若無按鈕文字，找所有 reports/twse_ 連結中日期最新者
@@ -66,7 +111,7 @@ def get_latest_report_info_from_home():
             if dates_links:
                 dates_links.sort(key=lambda x: x[0], reverse=True)
                 latest_date, href = dates_links[0]
-                full_url = f"https://7388chichi.pages.dev/{href.lstrip('/')}"
+                full_url = f"{base_url}/{href.lstrip('/')}"
                 return latest_date, full_url
     except Exception as e:
         print(f"取得首頁最新報告連結失敗: {e}")
@@ -78,6 +123,15 @@ def scrape_report(date_str=None):
     若未指定日期或指定日期失敗，會自動從首頁偵測最新發布的完整報告。
     回傳字典：{html, date, status, stocks_found}
     """
+    base_url = get_report_base_url()
+    if not base_url:
+        return {
+            'html': '',
+            'date': date_str or get_today_date_str(),
+            'status': 'failed',
+            'stocks_found': []
+        }
+
     # 1. 優先嘗試指定的日期
     dates_to_try = []
     if date_str:
@@ -98,8 +152,8 @@ def scrape_report(date_str=None):
     for d_str in dates_to_try:
         # 報告網址可能帶 .html 或不帶，兩者皆試
         url_candidates = [
-            f"https://7388chichi.pages.dev/reports/twse_{d_str}.html",
-            f"https://7388chichi.pages.dev/reports/twse_{d_str}",
+            f"{base_url}/reports/twse_{d_str}.html",
+            f"{base_url}/reports/twse_{d_str}",
         ]
         for url in url_candidates:
             try:

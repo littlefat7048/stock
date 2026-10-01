@@ -27,7 +27,9 @@ if 'c_sub' in st.query_params and st.query_params['c_sub']:
 if 'nav' in st.query_params and st.query_params['nav']:
     nav_target = str(st.query_params['nav']).strip()
     del st.query_params['nav']
-    if nav_target == 'stock':
+    if nav_target == 'radar':
+        st.switch_page("pages/4_🚀_強勢雷達.py")
+    elif nav_target == 'stock':
         st.switch_page("pages/1_📊_股票分析.py")
     elif nav_target == 'concept':
         st.switch_page("pages/2_🏷️_概念股.py")
@@ -152,6 +154,19 @@ with hc2:
 if (home_search_btn or home_stock_q) and home_stock_q.strip():
     st.session_state['target_stock'] = home_stock_q.strip()
     st.switch_page("pages/1_📊_股票分析.py")
+
+st.markdown(
+    '<a href="/?nav=radar" target="_self" style="text-decoration:none !important;">'
+    '<div style="background:linear-gradient(90deg, #1E1B4B 0%, #311042 100%); border:1.5px solid #A855F7; border-radius:10px; padding:10px 14px; margin:8px 0 10px 0; display:flex; justify-content:space-between; align-items:center; cursor:pointer;">'
+    '<div>'
+    '<span style="font-size:18px; font-weight:bold; color:#F472B6;">🚀 今日強勢飆股雷達已上線！</span>'
+    '<div style="color:#CBD5E1; font-size:14px; margin-top:2px;">🔥 爆量長紅 ｜ 📈 多頭連續上漲 ｜ 👑 王者共振股點此查看 ➔</div>'
+    '</div>'
+    '<span style="background:#7C3AED; color:#FFF; font-weight:bold; font-size:14px; padding:5px 12px; border-radius:6px; flex-shrink:0;">立即看盤 ➔</span>'
+    '</div>'
+    '</a>',
+    unsafe_allow_html=True
+)
 
 st.divider()
 

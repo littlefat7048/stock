@@ -22,6 +22,7 @@ from utils.helpers import (
     get_common_css, get_top_nav_html, render_quote_table_html
 )
 from modules.data_fetcher import get_batch_quotes_with_intraday
+from modules.screener import scan_market_signals
 
 st.set_page_config(page_title='自選股看盤清單', page_icon='⭐', layout='wide')
 st.markdown(get_common_css(), unsafe_allow_html=True)
@@ -57,8 +58,54 @@ if not watchlist:
     st.info("目前尚未加入任何自選股。您可以在上方輸入代號/股名新增，或在「股票分析」頁面點擊加入！")
 else:
     codes = [s['code'] for s in watchlist]
-    with st.spinner("正在載入自選股即時報價與走勢圖..."):
+    with st.spinner("正在載入自選股即時報價與訊號雷達..."):
         quotes_map = get_batch_quotes_with_intraday(codes)
+        screener_data = scan_market_signals()
+        screener_items = screener_data.get('items', {})
+
+    # ── ⭐ 自選股多頭訊號即時警報雷達 ──────────────────────────
+    alerts = []
+    for c in codes:
+        if c in screener_items:
+            s_info = screener_items[c]
+            sig_parts = []
+            vr = s_info.get('vol_ratio', 1.0)
+            cup = s_info.get('consec_up', 0)
+            brk = s_info.get('is_breakout_20d', False)
+            pct = s_info.get('pct_change', 0.0)
+
+            if vr >= 1.8 and pct > 0:
+                sig_parts.append(f"🔥爆量{vr}x")
+            if cup >= 2:
+                sig_parts.append(f"📈連{cup}紅")
+            if brk:
+                sig_parts.append("🚀創20日高")
+
+            if sig_parts:
+                p_col = "#ff3b5c" if pct >= 0 else "#00e676"
+                alerts.append(
+                    f'<a href="/?stock={c}" target="_self" style="text-decoration:none !important; display:inline-block; background:#1C2436; border:1px solid #38BDF8; border-radius:8px; padding:6px 12px; margin:3px 2px;">'
+                    f'<span style="color:#FFF; font-weight:bold; font-size:16px;">{s_info.get("name", c)} ({c})</span> '
+                    f'<span style="color:{p_col}; font-weight:bold; font-size:15px; margin-left:4px;">{pct:+.2f}%</span> '
+                    f'<span style="color:#FFD600; font-size:14px; margin-left:6px;">{" ｜ ".join(sig_parts)}</span>'
+                    f'</a>'
+                )
+
+    if alerts:
+        st.markdown(
+            f"<div style='background:#101826; border-left:4px solid #38BDF8; border-radius:8px; padding:10px 14px; margin:10px 0 14px 0;'>"
+            f"<div style='color:#38BDF8; font-weight:bold; font-size:17.5px; margin-bottom:6px;'>🚨 今日自選股強勢訊號雷達（{len(alerts)} 檔觸發）</div>"
+            f"<div style='display:flex; flex-wrap:wrap; gap:4px;'>{''.join(alerts)}</div>"
+            f"</div>",
+            unsafe_allow_html=True
+        )
+    else:
+        st.markdown(
+            "<div style='background:#0B1320; border-left:4px solid #10B981; border-radius:6px; padding:8px 12px; margin:10px 0 12px 0; font-size:15px; color:#A7F3D0;'>"
+            "🛡️ <b>今日自選股訊號雷達：</b>持股走勢平穩，目前暫無短線暴量過熱或異動訊號。"
+            "</div>",
+            unsafe_allow_html=True
+        )
 
     concept_data = load_concept_data()
     rows_data = []

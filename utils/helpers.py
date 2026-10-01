@@ -423,14 +423,14 @@ def get_common_css() -> str:
         display: none !important;
     }
 
-    /* ── 頂部 4 大功能快速導覽列（手機/電腦皆固定單行並排） ── */
+    /* ── 頂部 5 大功能快速導覽列（手機/電腦皆固定單行並排） ── */
     .top-nav-bar {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 6px;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 4px;
         margin-bottom: 10px;
         background: #141923;
-        padding: 6px;
+        padding: 5px 3px;
         border-radius: 10px;
         border: 1px solid #263044;
     }
@@ -438,9 +438,9 @@ def get_common_css() -> str:
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 9px 4px;
-        border-radius: 7px;
-        font-size: 16.5px;
+        padding: 7px 1px;
+        border-radius: 6px;
+        font-size: 14.5px;
         font-weight: bold;
         color: #94A3B8 !important;
         text-decoration: none !important;
@@ -457,6 +457,15 @@ def get_common_css() -> str:
         border: 1px solid #00D4AA;
         color: #00D4AA !important;
     }
+    @media (max-width: 600px) {
+        .nav-full { display: none !important; }
+        .nav-mobile { display: inline !important; }
+        .top-nav-item { padding: 7px 2px !important; font-size: 15px !important; }
+    }
+    @media (min-width: 601px) {
+        .nav-full { display: inline !important; }
+        .nav-mobile { display: none !important; }
+    }
     .quote-row-link, .quote-row-link * {
         text-decoration: none !important;
     }
@@ -468,17 +477,23 @@ def get_common_css() -> str:
 
 
 def get_top_nav_html(active: str = 'home') -> str:
-    """產生手機與電腦皆可一鍵切換的頂部 4 格導覽列 HTML"""
+    """產生手機與電腦皆可一鍵切換的頂部 5 格導覽列 HTML（手機響應式自動縮字）"""
     items = [
-        ('home', '📊 盤後日報'),
-        ('stock', '🔍 股票分析'),
-        ('concept', '🏷️ 概念股'),
-        ('watch', '⭐ 自選股'),
+        ('home', '📊 盤後日報', '📊 日報'),
+        ('radar', '🚀 強勢雷達', '🚀 雷達'),
+        ('stock', '🔍 股票分析', '🔍 分析'),
+        ('concept', '🏷️ 概念股', '🏷️ 概念'),
+        ('watch', '⭐ 自選股', '⭐ 自選'),
     ]
     links = []
-    for key, label in items:
+    for key, label_full, label_mob in items:
         cls = "top-nav-item active" if key == active else "top-nav-item"
-        links.append(f'<a href="/?nav={key}" target="_self" class="{cls}">{label}</a>')
+        links.append(
+            f'<a href="/?nav={key}" target="_self" class="{cls}">'
+            f'<span class="nav-full">{label_full}</span>'
+            f'<span class="nav-mobile">{label_mob}</span>'
+            f'</a>'
+        )
     return f'<div class="top-nav-bar">{"".join(links)}</div>'
 
 

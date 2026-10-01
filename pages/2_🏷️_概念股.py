@@ -130,6 +130,50 @@ current_sub = st.session_state.get('selected_concept_sub', default_sub)
 if current_sub not in all_sub_concepts:
     current_sub = default_sub
 
+# ── 🏆 今日最強資金輪動族群 TOP 5 ─────────────────────────────
+try:
+    from modules.screener import get_concept_rotation_rankings
+    rankings = get_concept_rotation_rankings()
+except Exception:
+    rankings = []
+
+if rankings:
+    top5 = rankings[:5]
+    rank_items_html = []
+    for idx, r in enumerate(top5):
+        cname = r['concept_name']
+        avg_pct = r['avg_pct_change']
+        leader = r.get('leader') or {}
+        l_name = leader.get('name', '')
+        l_pct = leader.get('pct_change', 0.0)
+        p_col = "#ff3b5c" if avg_pct >= 0 else "#00e676"
+        enc_c = urllib.parse.quote(cname)
+        active_cls = "border:2px solid #FFD700; background:#2A1B28;" if cname == current_sub else "border:1px solid #334155; background:#111622;"
+
+        leader_str = f"領頭: {l_name} ({l_pct:+.1f}%)" if l_name else f"共 {r['total_count']} 檔"
+        rank_items_html.append(
+            f'<a href="/?c_sub={enc_c}" target="_self" style="text-decoration:none !important; flex-shrink:0;">'
+            f'<div style="{active_cls} border-radius:8px; padding:6px 12px; min-width:145px; cursor:pointer;">'
+            f'<div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">'
+            f'<span style="color:#FFD700; font-weight:bold; font-size:14.5px;">NO.{idx+1} {short_label_map.get(cname, cname)}</span>'
+            f'<span style="color:{p_col}; font-weight:bold; font-size:16px;">{avg_pct:+.2f}%</span>'
+            f'</div>'
+            f'<div style="color:#94A3B8; font-size:12px; margin-top:2px;">{leader_str}</div>'
+            f'</div>'
+            f'</a>'
+        )
+
+    st.markdown(
+        f'<div style="margin-bottom:8px;">'
+        f'<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">'
+        f'<span style="color:#F472B6; font-weight:bold; font-size:16.5px;">🏆 今日最強資金輪動族群 TOP 5（點擊直達該族群）：</span>'
+        f'<span style="color:#64748B; font-size:13px;">依族群平均漲幅排行</span>'
+        f'</div>'
+        f'<div style="display:flex; overflow-x:auto; gap:8px; padding-bottom:6px; scrollbar-width:none;">{"".join(rank_items_html)}</div>'
+        f'</div>',
+        unsafe_allow_html=True
+    )
+
 # ── 橫向滑動概念膠囊列（仿圖片 [玻璃基板] [光通訊] [InP] [封測] [高價股]） ──
 pills_html = []
 for k in ordered_sub_keys:

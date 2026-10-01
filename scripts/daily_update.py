@@ -13,19 +13,26 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(CURRENT_DIR)
 sys.path.insert(0, PROJECT_ROOT)
 
+# 確保 Windows 主控台正確支援 UTF-8 編碼
+if hasattr(sys.stdout, 'reconfigure'):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+
 from modules.daily_report import scrape_report, get_today_date_str
 
 def daily_job():
     print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] 開始執行每日盤後報告抓取作業...")
-    today_str = get_today_date_str()
-    result = scrape_report(today_str)
+    # 若今日報告尚未發布，自動抓取最新一期發布之報告
+    result = scrape_report(None)
     
     if result.get('status') == 'success':
-        date_str = result.get('date', today_str)
+        date_str = result.get('date', '')
         stocks_count = len(result.get('stocks_found', []))
-        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] ✅ 抓取成功！報告日期: {date_str}，共收錄 {stocks_count} 檔個股深度分析")
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [成功] 抓取成功！報告日期: {date_str}，共收錄 {stocks_count} 檔個股深度分析")
     else:
-        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] ⚠️ 今日尚未發布或抓取失敗，稍後會自動重試...")
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [提醒] 今日尚未發布或抓取失敗，稍後會自動重試...")
 
 if __name__ == '__main__':
     print("=" * 60)

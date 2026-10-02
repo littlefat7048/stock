@@ -1,0 +1,109 @@
+{
+  "source": "https://github.com/public-apis/public-apis",
+  "updated_at": "2026-10-02",
+  "categories": {
+    "macro_economics": [
+      {
+        "name": "FRED (Federal Reserve Economic Data)",
+        "url": "https://fred.stlouisfed.org/docs/api/fred/",
+        "auth": "apiKey",
+        "description": "美國聖路易聯準會官方經濟數據庫，包含10年期公債殖利率、基準利率、CPI、通膨預期、美元指數",
+        "usage_for_tw_stock": "外資資金動向領先指標、科技權值股估值折現率"
+      },
+      {
+        "name": "Econdb",
+        "url": "https://www.econdb.com/api/",
+        "auth": "None",
+        "description": "全球90+國家宏觀數據，包含台灣、美國、中國製造業PMI與GDP",
+        "usage_for_tw_stock": "總經與製造業景氣循環判讀"
+      }
+    ],
+    "taiwan_and_global_equities": [
+      {
+        "name": "FinBridge",
+        "url": "https://www.gronox.kr/docs",
+        "auth": "apiKey",
+        "description": "官方來源財報、分部營收、估值比率與同業對比，支援台灣(TW)、美國、韓國、日本",
+        "usage_for_tw_stock": "台股財報細項與同業估值備援"
+      },
+      {
+        "name": "Alpha Vantage",
+        "url": "https://www.alphavantage.co/",
+        "auth": "apiKey",
+        "description": "全球股市即時與歷史行情、美股ADR、外匯、大宗商品",
+        "usage_for_tw_stock": "台積電ADR(TSM)、聯電ADR(UMC)、美股輝達(NVDA)盤前盤後連動"
+      },
+      {
+        "name": "Finnhub",
+        "url": "https://finnhub.io/docs/api",
+        "auth": "apiKey",
+        "description": "即時行情、市場情緒分析、美股重要科技股財報與新聞",
+        "usage_for_tw_stock": "AI市場多空情緒與美股上游供應鏈"
+      }
+    ],
+    "forex_and_currency": [
+      {
+        "name": "Exchangerate.host",
+        "url": "https://exchangerate.host",
+        "auth": "None",
+        "description": "免費外匯匯率與加密貨幣匯率轉換",
+        "usage_for_tw_stock": "美元/台幣 (USD/TWD)、日圓/台幣 (JPY/TWD) 即時走勢，外銷電子股匯損/匯益分析"
+      },
+      {
+        "name": "Currencylayer",
+        "url": "https://currencylayer.com",
+        "auth": "apiKey",
+        "description": "168種世界貨幣即時匯率API",
+        "usage_for_tw_stock": "匯率行情備援"
+      }
+    ],
+    "commodities_raw_materials": [
+      {
+        "name": "Goldprice.dev",
+        "url": "https://goldprice.dev/docs",
+        "auth": "None",
+        "description": "免金鑰即時取得黃金、白銀、銅(Copper)現貨與歷史價格",
+        "usage_for_tw_stock": "國際銅價走勢，直接連動PCB銅箔基板(台燿/台光電)與半導體導線架(百容/順德)原物料成本"
+      }
+    ],
+    "news_and_sentiment": [
+      {
+        "name": "StockData.org",
+        "url": "https://www.StockData.org",
+        "auth": "apiKey",
+        "description": "即時全球財經新聞與情緒分析(Sentiment Scoring)",
+        "usage_for_tw_stock": "輔助AI綜合評語之國際輿情"
+      },
+      {
+        "name": "Currents",
+        "url": "https://currentsapi.services/",
+        "auth": "apiKey",
+        "description": "多語言即時全球新聞檢索",
+        "usage_for_tw_stock": "科技與半導體全球產業動態"
+      }
+    ],
+    "taiwan_local_powerhouses": [
+      {
+        "name": "FinMind",
+        "url": "https://finmind.github.io/",
+        "auth": "None / Token",
+        "description": "台灣本土開源金融資料庫（上市櫃日K、三大法人、融資融券、財報、月營收）",
+        "usage_for_tw_stock": "本系統現役核心數據來源之一"
+      },
+      {
+        "name": "TWSE OpenAPI",
+        "url": "https://openapi.twse.com.tw/",
+        "auth": "None",
+        "description": "臺灣證券交易所官方開放資料平台",
+        "usage_for_tw_stock": "官方每日買賣超、盤後統計"
+      },
+      {
+        "name": "TPEx OpenAPI",
+        "url": "https://www.tpex.org.tw/web/stock/api/",
+        "auth": "None",
+        "description": "證券櫃檯買賣中心官方開放資料平台",
+        "usage_for_tw_stock": "上櫃與興櫃官方數據"
+      }
+    ]
+  }
+}

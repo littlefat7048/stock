@@ -159,6 +159,7 @@ def scrape_report(date_str=None):
             try:
                 response = requests.get(url, headers=HEADERS, timeout=15)
                 if response.status_code == 200:
+                    response.encoding = 'utf-8'
                     html = response.text
                     if _is_real_report(html):
                         stocks = parse_stock_codes(html)

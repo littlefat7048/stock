@@ -92,6 +92,16 @@ with st.sidebar:
                 break
         d -= timedelta(days=1)
 
+    # 智慧自動同步：若最新工作日尚未快取，主動向線上探測是否有新報告發布
+    latest_workday = date_options[0] if date_options else None
+    if latest_workday and latest_workday not in available:
+        try:
+            latest_res = scrape_report(latest_workday)
+            if latest_res.get('status') == 'success':
+                available = get_available_dates()
+        except Exception:
+            pass
+
     # 確保已快取的日期在選項內
     for av in available:
         if av not in date_options:
@@ -123,15 +133,20 @@ with st.sidebar:
     )
 
     st.divider()
-    if st.button("🔄 立即重新抓取", use_container_width=True):
-        with st.spinner(f"正在抓取 {selected_date} 的完整報告..."):
+    if st.button("🔄 立即檢查與重新抓取", use_container_width=True):
+        with st.spinner(f"正在檢查與抓取盤後分析報告..."):
+            # 優先嘗試當前選取的日期，若未抓到再嘗試最新工作日
             result = scrape_report(selected_date)
-            if result['status'] == 'success':
-                st.success(f"✅ 抓取成功！包含 {len(result['stocks_found'])} 檔個股分析")
+            if result.get('status') != 'success' and latest_workday and latest_workday != selected_date:
+                result = scrape_report(latest_workday)
+            if result.get('status') == 'success':
+                st.success(f"✅ 抓取成功！日期 {result.get('date')} 包含 {len(result.get('stocks_found', []))} 檔個股分析")
+                time.sleep(1)
                 st.rerun()
             else:
-                st.error("❌ 該日報告尚未發布或抓取失敗")
+                st.error("❌ 該日報告尚未發布或抓取失敗，請確認上游是否已出刊")
 
+    st.caption("💡 週末休市不開盤，最新交易日為週五。平日每日 19:00 起自動多梯次同步！")
     st.divider()
     st.caption("💡 每日 19:00 自動抓取最新報告\n\n點擊報告中任何股票代碼即可跳至「個股分析」！")
 

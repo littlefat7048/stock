@@ -43,7 +43,8 @@ from modules.technical_analysis import (
 from modules.chip_analysis import (
     get_institutional_trend, get_margin_trading,
     get_chip_score, get_chip_summary,
-    calculate_chip_intensity, calculate_mofi_institutional_series
+    calculate_chip_intensity, calculate_mofi_institutional_series,
+    get_day_trading_analysis
 )
 from modules.ai_analysis import generate_stock_analysis, get_gemini_model
 from utils.helpers import (
@@ -55,7 +56,8 @@ from utils.helpers import (
 from utils.charts import (
     create_candlestick_chart, create_macd_chart, create_kd_chart,
     create_rsi_chart, create_institutional_chart, create_margin_chart,
-    create_eps_chart, create_revenue_chart, create_mofi_institutional_force_chart
+    create_eps_chart, create_revenue_chart, create_mofi_institutional_force_chart,
+    create_day_trading_chart
 )
 
 from utils.helpers import get_common_css, get_top_nav_html
@@ -105,7 +107,7 @@ if search_btn or raw_input:
     stock_code = resolve_stock_query(raw_input)
     st.query_params['stock'] = stock_code
 
-    with st.spinner(f"正在載入台股 {stock_code} 完整基本面、公司業務、技術面、法人力度與財報資料..."):
+    with st.spinner(f"正在載入台股 {stock_code} 完整基本面、公司業務、技術面、法人力度、當沖率與財報資料..."):
         info       = get_stock_info(stock_code)
         df_price   = get_price_history(stock_code, period='1y')
         chip_df    = get_institutional_trend(stock_code, days=65)
@@ -115,6 +117,7 @@ if search_btn or raw_input:
         report_cmt = get_daily_report_commentary_for_stock(stock_code)
         concept_details = get_concept_details_for_stock(stock_code, concepts)
         biz_analysis = build_business_and_profit_analysis(info, financials, report_cmt, concept_details)
+        day_trading  = get_day_trading_analysis(stock_code, df_price=df_price, days=40)
 
     if df_price is None or df_price.empty:
         st.error(f"❌ 找不到台股代號「{raw_input}」（解析為 {stock_code}）的股價資料，請確認輸入的台股代號或中文名稱是否正確。")
@@ -337,8 +340,8 @@ if search_btn or raw_input:
 
     PLOTLY_CFG = {
         'displayModeBar': False,
-        'scrollZoom': True,
-        'doubleClick': 'reset',
+        'scrollZoom': False,
+        'doubleClick': False,
         'displaylogo': False
     }
 
@@ -355,7 +358,7 @@ if search_btn or raw_input:
         "當<b>白色實線向上穿過白色虛線</b>，代表近期法人買盤比過去兩個月都還要強！</li>"
         "<li><b>🟩 中間零軸上的「亮綠 / 橄欖黃小方塊」</b>："
         "只要看到中間 `0.0%` 虛線上出現<b>一排綠色或黃色小方塊</b>，就代表目前正處於<b>「短線買盤 ＞ 長線基準」的法人偏多吸籌期</b>！</li>"
-        "<li><b>🔍 想要放大看最近幾天？</b>您可以直接點選上方的<b>「近2週(極大) / 近1月(放大)」</b>按鈕，或用手指在圖表上<b>「雙指左右張開放大、單指左右滑動」</b>（在圖表上<b>連點兩下</b>即可一鍵還原）！</li>"
+        "<li><b>🔍 想要放大看最近幾天？</b>畫面已鎖定防滑動誤觸，點擊 K 線任一根可查看當日數據，您可直接點選上方的<b>「近2週(極大) / 近1月(放大)」</b>按鈕一鍵切換！</li>"
         "</ul></div>"
     )
 
@@ -378,11 +381,15 @@ if search_btn or raw_input:
         osc_v   = float(last_row.get('Hist', 0) or 0)
         rsi_v   = float(last_row.get('RSI', 0) or 0)
 
+        dt_ratio = day_trading.get('latest_ratio', 0.0) if day_trading else 0.0
+        dt_lots = day_trading.get('latest_dt_lots', 0) if day_trading else 0
+        dt_color = day_trading.get('heat_color', '#FFD700') if day_trading else '#FFD700'
+
         st.markdown(
             f"<div class='info-card' style='border-left:4px solid #38BDF8; padding:10px 12px; margin-bottom:8px;'>"
             f"<div style='display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:6px;'>"
             f"<span style='color:#38BDF8; font-weight:bold; font-size:18.5px;'>📌 最新交易日（{latest_date_str}）詳細數據一覽（免點圖表直接看）</span>"
-            f"<span style='color:#94A3B8; font-size:16.5px;'>🔍 圖表支援「雙指左右放大、單指左右平移、連點兩下還原」</span>"
+            f"<span style='color:#94A3B8; font-size:16.5px;'>🔒 畫面已固定防誤觸滑動（點擊 K 棒可看詳細數值）</span>"
             f"</div>"
             f"<div style='display:grid; grid-template-columns: repeat(auto-fit, minmax(115px, 1fr)); gap:6px; font-size:17.5px;'>"
             f"<div style='background:#161F30; padding:6px 8px; border-radius:6px;'>"
@@ -400,6 +407,10 @@ if search_btn or raw_input:
             f"<div style='background:#161F30; padding:6px 8px; border-radius:6px;'>"
             f"<div style='color:#94A3B8; font-size:16.5px;'>🌊 MACD 指標</div>"
             f"<div>DIF <b style='color:#00E5FF;'>{dif_v:.2f}</b> ｜ MACD <b style='color:#FF80AB;'>{macd_v:.2f}</b><br>柱狀(OSC)：<b style='color:{'#e53935' if osc_v>=0 else '#43a047'};'>{osc_v:+.2f}</b></div>"
+            f"</div>"
+            f"<div style='background:#161F30; padding:6px 8px; border-radius:6px;'>"
+            f"<div style='color:#94A3B8; font-size:16.5px;'>⚡ 當沖交易指標</div>"
+            f"<div>當沖率：<b style='color:{dt_color};'>{dt_ratio:.1f}%</b><br>當沖量：<b>{dt_lots:,} 張</b></div>"
             f"</div>"
             f"</div>"
             f"</div>",
@@ -458,7 +469,7 @@ if search_btn or raw_input:
             c_opt1, c_opt2 = st.columns([1.4, 1.6])
             with c_opt1:
                 k_range_label = st.radio(
-                    "🔍 選擇圖表顯示範圍（亦可雙指放大）",
+                    "🔍 選擇 K 線顯示週期（畫面鎖定防誤觸・點擊可看數值）",
                     ["近2週(極大)", "近1月(放大)", "近3月(適中)", "近半年"],
                     index=1,
                     horizontal=True
@@ -766,6 +777,72 @@ if search_btn or raw_input:
                     )
 
                 st.plotly_chart(create_margin_chart(margin_df), use_container_width=True, config=PLOTLY_CFG)
+
+            # 3. ⚡ 當日沖銷（當沖）籌碼與短線熱度深度分析
+            if day_trading and day_trading.get('available'):
+                st.markdown("#### ⚡ 當日沖銷（當沖）籌碼與短線熱度分析")
+                dt_col1, dt_col2, dt_col3, dt_col4 = st.columns(4)
+                dt_r = day_trading.get('latest_ratio', 0.0)
+                dt_lots = day_trading.get('latest_dt_lots', 0)
+                tot_lots = day_trading.get('latest_tot_lots', 0)
+                avg_5d = day_trading.get('avg_5d_ratio', 0.0)
+                b_yi = day_trading.get('buy_amt_yi', 0.0)
+                s_yi = day_trading.get('sell_amt_yi', 0.0)
+                h_col = day_trading.get('heat_color', '#00D4AA')
+                h_lvl = day_trading.get('heat_level', '')
+
+                with dt_col1:
+                    st.markdown(
+                        f"<div class='info-card'>"
+                        f"<div style='color:#94A3B8;font-size:17px;'>最新當沖率 (當沖比)</div>"
+                        f"<div style='font-size:28px;font-weight:bold;color:{h_col};margin:3px 0;'>{dt_r:.2f}%</div>"
+                        f"<div style='font-size:16px;font-weight:bold;color:{h_col};'>{h_lvl}</div>"
+                        f"</div>",
+                        unsafe_allow_html=True
+                    )
+                with dt_col2:
+                    st.markdown(
+                        f"<div class='info-card'>"
+                        f"<div style='color:#94A3B8;font-size:17px;'>當沖成交張數</div>"
+                        f"<div style='font-size:26px;font-weight:bold;color:#FB923C;margin:3px 0;'>{dt_lots:,} 張</div>"
+                        f"<div style='font-size:16px;color:#94A3B8;'>佔總量 {tot_lots:,} 張之 {dt_r:.1f}%</div>"
+                        f"</div>",
+                        unsafe_allow_html=True
+                    )
+                with dt_col3:
+                    st.markdown(
+                        f"<div class='info-card'>"
+                        f"<div style='color:#94A3B8;font-size:17px;'>近 5 日平均當沖率</div>"
+                        f"<div style='font-size:26px;font-weight:bold;color:#38BDF8;margin:3px 0;'>{avg_5d:.2f}%</div>"
+                        f"<div style='font-size:16px;color:#94A3B8;'>5日均值水準</div>"
+                        f"</div>",
+                        unsafe_allow_html=True
+                    )
+                with dt_col4:
+                    st.markdown(
+                        f"<div class='info-card'>"
+                        f"<div style='color:#94A3B8;font-size:17px;'>當日當沖金額規模</div>"
+                        f"<div style='font-size:22px;font-weight:bold;color:#FAFAFA;margin:3px 0;'>買 {b_yi:.1f}億 / 賣 {s_yi:.1f}億</div>"
+                        f"<div style='font-size:16px;color:#94A3B8;'>當沖資金進出總額</div>"
+                        f"</div>",
+                        unsafe_allow_html=True
+                    )
+
+                st.markdown(
+                    f"<div class='info-card' style='border-left:4px solid {h_col}; padding:10px 12px; margin-bottom:8px;'>"
+                    f"💡 <b>當沖籌碼解讀：</b>{day_trading.get('heat_desc', '')}"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
+
+                dt_df = day_trading.get('df')
+                if dt_df is not None and not dt_df.empty:
+                    st.plotly_chart(create_day_trading_chart(dt_df), use_container_width=True, config=PLOTLY_CFG)
+
+                    with st.expander("📋 查看近 15 日當沖成交量、當沖率與金額明細表", expanded=False):
+                        show_dt = dt_df[['DateStr', 'Close', 'TotalLots', 'DayTradingLots', 'DayTradingRatio', 'BuyAmtYi', 'SellAmtYi']].tail(15).iloc[::-1].copy()
+                        show_dt.columns = ['日期', '收盤價', '總量(張)', '當沖量(張)', '當沖率(%)', '當沖買額(億)', '當沖賣額(億)']
+                        st.dataframe(show_dt, use_container_width=True, hide_index=True)
 
             # 近期法人買賣超與「法人力度（佔股本比 + Z-Score）」明細表
             with st.expander("📋 查看近 15 個交易日三大法人買賣超與「法人力度（佔股本比 / Z值）」明細表", expanded=True):

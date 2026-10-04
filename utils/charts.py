@@ -51,7 +51,7 @@ def _apply_dark_layout(fig, bottom_margin=100, top_margin=54, legend_y=-0.24, is
         plot_bgcolor=PLOT_BG_COLOR,
         font=dict(size=14.5, color=FONT_COLOR),
         margin=dict(l=10, r=14, t=top_margin, b=bottom_margin),
-        dragmode='pan',
+        dragmode=False,
         hovermode='closest',
         hoverlabel=dict(
             bgcolor='rgba(14, 17, 23, 0.92)',
@@ -78,7 +78,7 @@ def _apply_dark_layout(fig, bottom_margin=100, top_margin=54, legend_y=-0.24, is
     fig.update_layout(**layout_kwargs)
     xaxis_kwargs = dict(
         showgrid=True, gridwidth=1, gridcolor=GRID_COLOR,
-        fixedrange=False,
+        fixedrange=True,
         tickfont=dict(size=13),
         automargin=True
     )
@@ -437,3 +437,60 @@ def create_revenue_chart(monthly_revenue):
     fig.update_yaxes(secondary_y=True, ticksuffix="%", tickfont=dict(size=13))
     fig.update_layout(height=440, title_text='近 12 個月營收(柱) 與 年增率 YoY(線)')
     return _apply_dark_layout(fig, bottom_margin=106, top_margin=52, legend_y=-0.27, is_date_x=False)
+
+
+def create_day_trading_chart(day_trading_df):
+    """
+    當日沖銷（當沖）雙軸走勢圖：
+    - 主軸（左軸/柱狀）：總成交量(張) 與 當沖成交量(張)
+    - 副軸（右軸/折線）：當沖率 (%)，含 50% 警戒虛線
+    """
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    if day_trading_df is None or day_trading_df.empty:
+        return _apply_dark_layout(fig)
+
+    x_vals = day_trading_df.index
+    tot_lots = day_trading_df['TotalLots']
+    dt_lots = day_trading_df['DayTradingLots']
+    dt_ratios = day_trading_df['DayTradingRatio']
+
+    # 1. 總成交量柱狀圖（暗灰藍底柱）
+    fig.add_trace(go.Bar(
+        x=x_vals, y=tot_lots,
+        name='總成交量(張)',
+        marker_color='#334155',
+        hovertemplate="%{x|%m/%d}｜總成交量: <b>%{y:,.0f} 張</b><extra></extra>"
+    ), secondary_y=False)
+
+    # 2. 當沖成交量柱狀圖（亮橘色疊加柱）
+    fig.add_trace(go.Bar(
+        x=x_vals, y=dt_lots,
+        name='當沖成交量(張)',
+        marker_color='#FB923C',
+        hovertemplate="%{x|%m/%d}｜當沖量: <b>%{y:,.0f} 張</b><extra></extra>"
+    ), secondary_y=False)
+
+    # 3. 當沖率折線圖（霓虹青色折線帶金黃點）
+    fig.add_trace(go.Scatter(
+        x=x_vals, y=dt_ratios,
+        mode='lines+markers',
+        line=dict(color='#00E5FF', width=2.6),
+        marker=dict(size=7, color='#FFD700'),
+        name='當沖率(%)',
+        hovertemplate="%{x|%m/%d}｜當沖率: <b>%{y:.2f}%</b><extra></extra>"
+    ), secondary_y=True)
+
+    # 50% 當沖警戒虛線
+    fig.add_hline(y=50, line_dash="dash", line_color="#FF5252", line_width=1.5,
+                  annotation_text="50% 當沖熱度警戒線", annotation_position="top left",
+                  annotation_font=dict(color="#FF5252", size=12),
+                  secondary_y=True)
+
+    fig.update_layout(
+        barmode='overlay',
+        height=420,
+        title_text='當日沖銷成交量(張) 與 當沖率(%) 歷史走勢'
+    )
+    fig.update_yaxes(title_text='成交量(張)', secondary_y=False, tickfont=dict(size=13))
+    fig.update_yaxes(title_text='當沖率(%)', ticksuffix='%', secondary_y=True, tickfont=dict(size=13))
+    return _apply_dark_layout(fig, bottom_margin=102, top_margin=52, legend_y=-0.25, is_date_x=True, df_index=day_trading_df.index)

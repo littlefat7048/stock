@@ -604,3 +604,133 @@ def calculate_mofi_institutional_series(
     return df
 
 
+def get_day_trading_analysis(code: str, df_price: pd.DataFrame = None, days: int = 40) -> dict:
+    """
+    取得個股當日沖銷（當沖）歷史數據與最新指標：
+    - 當沖成交股數、當沖買進金額、當沖賣出金額
+    - 與當日總成交量對比計算「當沖率 (Day Trading Ratio %)」
+    - 近 5 日平均當沖率
+    - 當沖籌碼熱度評級與操作解讀
+    - 支援 1 小時本地快取
+    """
+    code = str(code).strip()
+    cache_path = os.path.join(CACHE_DIR, f"day_trading_{code}.json")
+    rows = None
+    if os.path.exists(cache_path) and (time.time() - os.path.getmtime(cache_path) < 3600):
+        try:
+            with open(cache_path, 'r', encoding='utf-8') as f:
+                rows = json.load(f)
+        except Exception:
+            rows = None
+
+    if rows is None:
+        try:
+            start_d = (datetime.now() - timedelta(days=max(120, days * 2 + 30))).strftime('%Y-%m-%d')
+            r = requests.get(FINMIND_URL, params={
+                'dataset': 'TaiwanStockDayTrading',
+                'data_id': code,
+                'start_date': start_d
+            }, timeout=8)
+            rows = r.json().get('data', [])
+            if rows:
+                with open(cache_path, 'w', encoding='utf-8') as f:
+                    json.dump(rows, f, ensure_ascii=False)
+        except Exception as e:
+            print(f"FinMind day trading error for {code}: {e}")
+            rows = []
+
+    if not rows:
+        return {'available': False, 'df': pd.DataFrame()}
+
+    # 建立以日期字串為 key 的當沖字典
+    dt_map = {r['date']: r for r in rows if 'date' in r}
+
+    # 若沒有傳入 df_price，自行從 data_fetcher 抓
+    if df_price is None or df_price.empty:
+        try:
+            from modules.data_fetcher import get_price_history
+            df_price = get_price_history(code, period='6mo')
+        except Exception:
+            df_price = pd.DataFrame()
+
+    if df_price is None or df_price.empty:
+        return {'available': False, 'df': pd.DataFrame()}
+
+    records = []
+    for dt, row in df_price.iterrows():
+        d_str = dt.strftime('%Y-%m-%d') if hasattr(dt, 'strftime') else str(dt)[:10]
+        tot_vol = float(row.get('Volume', 0))
+        tot_lots = round(tot_vol / 1000.0)
+        dt_record = dt_map.get(d_str, {})
+        dt_vol = float(dt_record.get('Volume', 0) or 0)
+        dt_lots = round(dt_vol / 1000.0)
+        buy_amt = float(dt_record.get('BuyAmount', 0) or 0)
+        sell_amt = float(dt_record.get('SellAmount', 0) or 0)
+
+        ratio = round((dt_vol / tot_vol * 100), 2) if tot_vol > 0 else 0.0
+
+        records.append({
+            'Date': dt,
+            'DateStr': d_str,
+            'Close': float(row.get('Close', 0)),
+            'TotalLots': tot_lots,
+            'DayTradingLots': dt_lots,
+            'DayTradingRatio': ratio,
+            'BuyAmtYi': round(buy_amt / 1e8, 2),
+            'SellAmtYi': round(sell_amt / 1e8, 2),
+        })
+
+    res_df = pd.DataFrame(records)
+    if res_df.empty:
+        return {'available': False, 'df': pd.DataFrame()}
+
+    res_df.set_index('Date', inplace=True)
+    res_df = res_df.tail(days)
+
+    latest_r = res_df.iloc[-1]
+    latest_ratio = float(latest_r['DayTradingRatio'])
+    latest_dt_lots = int(latest_r['DayTradingLots'])
+    latest_tot_lots = int(latest_r['TotalLots'])
+    latest_date = str(latest_r['DateStr'])
+    buy_amt_yi = float(latest_r['BuyAmtYi'])
+    sell_amt_yi = float(latest_r['SellAmtYi'])
+
+    avg_5d = round(float(res_df['DayTradingRatio'].tail(5).mean()), 2)
+
+    if latest_ratio >= 60.0:
+        heat_level = '🚨 極高當沖 (警戒)'
+        heat_color = '#FF5252'
+        heat_desc = f'最新當沖率達 {latest_ratio:.1f}%，已超越 60% 警戒門檻！市場短線熱度爆表，大量隔日沖游資主力頻繁進出，盤中容易出現劇烈急拉或急殺，留倉風險偏高，操作需嚴格設定停損點。'
+    elif latest_ratio >= 40.0:
+        heat_level = '⚡ 當沖活躍 (熱門)'
+        heat_color = '#FFA726'
+        heat_desc = f'最新當沖率為 {latest_ratio:.1f}%，屬於熱門焦點股常態，交投熱絡且流動性極佳，但需留意早盤衝高後尾盤當沖籌碼調節的震盪洗盤。'
+    elif latest_ratio >= 20.0:
+        heat_level = '🌿 溫和健康 (常態)'
+        heat_color = '#38BDF8'
+        heat_desc = f'最新當沖率為 {latest_ratio:.1f}%，處於健康常態區間，兼具市場流動性且有實質波段買盤進駐，籌碼結構相對穩健。'
+    elif latest_ratio > 0.0:
+        heat_level = '🛡️ 低當沖 (安定)'
+        heat_color = '#4ADE80'
+        heat_desc = f'最新當沖率僅 {latest_ratio:.1f}%，短線當沖客極少參與，多為法人、大戶或長線實質投資人進駐，籌碼沉穩安定，不易受當沖雜音干擾。'
+    else:
+        heat_level = '⚪ 無當沖交易'
+        heat_color = '#94A3B8'
+        heat_desc = '當日無當沖交易紀錄或非現股當沖標的。'
+
+    return {
+        'available': True,
+        'latest_date': latest_date,
+        'latest_ratio': latest_ratio,
+        'latest_dt_lots': latest_dt_lots,
+        'latest_tot_lots': latest_tot_lots,
+        'buy_amt_yi': buy_amt_yi,
+        'sell_amt_yi': sell_amt_yi,
+        'avg_5d_ratio': avg_5d,
+        'heat_level': heat_level,
+        'heat_color': heat_color,
+        'heat_desc': heat_desc,
+        'df': res_df
+    }
+
+

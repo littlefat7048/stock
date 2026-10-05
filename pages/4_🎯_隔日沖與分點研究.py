@@ -15,6 +15,18 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
+import importlib
+
+import modules.data_fetcher
+import modules.broker_analysis
+import utils.charts
+import utils.helpers
+
+try:
+    importlib.reload(modules.broker_analysis)
+    importlib.reload(utils.charts)
+except Exception:
+    pass
 
 from modules.data_fetcher import get_stock_info
 from modules.broker_analysis import (
@@ -408,15 +420,25 @@ with tab_study:
 
     # 左側：走勢圖與分點痕跡大圖（優先渲染）
     with col_chart:
-        # 計算足跡
-        footprint = match_broker_footprint(
-            df_intraday=df_m,
-            buy_price=active_buy_p,
-            sell_price=active_sell_p,
-            buy_lots=active_buy_vol,
-            sell_lots=active_sell_vol,
-            broker_name=active_broker
-        )
+        # 計算足跡（多重向下相容防禦，杜絕 Streamlit Cloud 快取 TypeError）
+        try:
+            footprint = match_broker_footprint(
+                df_intraday=df_m,
+                buy_price=active_buy_p,
+                sell_price=active_sell_p,
+                buy_lots=active_buy_vol,
+                sell_lots=active_sell_vol,
+                broker_name=active_broker
+            )
+        except TypeError:
+            try:
+                footprint = match_broker_footprint(
+                    df_m, active_buy_p, active_sell_p, active_buy_vol, active_sell_vol
+                )
+            except Exception:
+                footprint = []
+        except Exception:
+            footprint = []
 
         # 頂部控制列與圖例
         c_c_title, c_c_opts = st.columns([3.0, 2.0])
@@ -446,22 +468,31 @@ with tab_study:
                 unsafe_allow_html=True
             )
 
-        # 繪製 Plotly 圖表
-        fig_fp = create_intraday_footprint_chart(
-            df_m=df_m,
-            broker_name=active_broker,
-            buy_price=active_buy_p,
-            sell_price=active_sell_p,
-            footprint=footprint,
-            show_vwap=chk_vwap,
-            show_footprint=chk_footprint
-        )
+        # 繪製 Plotly 圖表（防禦性安全調用）
+        try:
+            fig_fp = create_intraday_footprint_chart(
+                df_m=df_m,
+                broker_name=active_broker,
+                buy_price=active_buy_p,
+                sell_price=active_sell_p,
+                footprint=footprint,
+                show_vwap=chk_vwap,
+                show_footprint=chk_footprint
+            )
+        except TypeError:
+            fig_fp = create_intraday_footprint_chart(
+                df_m, active_broker, active_buy_p, active_sell_p, footprint
+            )
+        except Exception as e_chart:
+            st.error(f"圖表繪製發生異常: {e_chart}")
+            fig_fp = None
 
-        st.plotly_chart(
-            fig_fp,
-            use_container_width=True,
-            config={'displayModeBar': False, 'scrollZoom': False, 'doubleClick': False}
-        )
+        if fig_fp is not None:
+            st.plotly_chart(
+                fig_fp,
+                use_container_width=True,
+                config={'displayModeBar': False, 'scrollZoom': False, 'doubleClick': False}
+            )
 
         # 底端圖例與說明
         c_bot1, c_bot2 = st.columns([3.2, 1.2])

@@ -323,7 +323,7 @@ def parse_broker_excel(file_content, filename: str = "upload.xlsx") -> dict:
     }
 
 
-def match_broker_footprint(df_intraday: pd.DataFrame, buy_price: float, sell_price: float, buy_lots: int, sell_lots: int, broker_name: str = "") -> list:
+def match_broker_footprint(df_intraday: pd.DataFrame, buy_price: float = 0.0, sell_price: float = 0.0, buy_lots: int = 0, sell_lots: int = 0, broker_name: str = "", *args, **kwargs) -> list:
     """
     分點分時足跡推估演算法（精準還原圖一階梯帶與三角形）：
     根據該分點的「買均價」與「賣均價」，在 1 分鐘線中搜尋最相符的進出場價格帶與時段區間

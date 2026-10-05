@@ -676,7 +676,7 @@ def create_day_trading_chart(day_trading_df):
     return _apply_dark_layout(fig, bottom_margin=102, top_margin=52, legend_y=-0.25, is_date_x=True, df_index=day_trading_df.index)
 
 
-def create_intraday_footprint_chart(df_m: pd.DataFrame, broker_name: str = None, buy_price: float = 0.0, sell_price: float = 0.0, footprint: list = None, show_vwap: bool = True, show_footprint: bool = True):
+def create_intraday_footprint_chart(df_m: pd.DataFrame, broker_name: str = None, buy_price: float = 0.0, sell_price: float = 0.0, footprint: list = None, show_vwap: bool = True, show_footprint: bool = True, *args, **kwargs):
     """
     隔日沖手法研究：分時走勢與主力分點足跡圖（精準還原 10:33 圖一）
     1. 上方子圖：

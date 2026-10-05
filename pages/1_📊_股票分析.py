@@ -140,9 +140,13 @@ sample_chips = "".join([
     for qcode, qname in quick_samples
 ])
 st.markdown(
-    f'<div style="display:flex; align-items:center; margin-bottom:6px;">'
+    f'<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;">'
+    f'<div style="display:flex; align-items:center;">'
     f'<span style="color:#94A3B8; font-size:17px; margin-right:6px; flex-shrink:0;">熱門：</span>'
     f'<div class="chips-scroll-bar" style="margin:0; padding:2px 0;">{sample_chips}</div>'
+    f'</div>'
+    f'<a href="/隔日沖與分點研究?stock={stock_code}" target="_self" class="stock-chip-link" style="border-color:#FFD700; color:#FFD700; font-weight:bold; font-size:16px;">'
+    f'🎯 查看【{stock_code}】隔日沖手法與分點足跡 ➔</a>'
     f'</div>',
     unsafe_allow_html=True
 )

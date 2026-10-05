@@ -23,22 +23,32 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install requests beautifulsoup4 lxml
+        run: pip install requests beautifulsoup4 lxml yfinance pandas numpy
 
-      - name: Scrape latest report
+      - name: Scrape latest report and pre-fetch broker footprint
         run: |
           python -c "
-          import sys
+          import sys, time
           sys.path.insert(0, '.')
           from modules.daily_report import scrape_report
+          from modules.broker_analysis import get_broker_trading_auto
           res = scrape_report()
-          print('Status:', res.get('status'), 'Date:', res.get('date'), 'Stocks:', len(res.get('stocks_found', [])))
+          print('Report Status:', res.get('status'), 'Date:', res.get('date'), 'Stocks:', len(res.get('stocks_found', [])))
+          # 順便預熱前 15 檔焦點股當日主力分點資料，間隔 1.5 秒溫和抓取
+          for s in res.get('stocks_found', [])[:15]:
+              code = s.get('code')
+              if code:
+                  try:
+                      get_broker_trading_auto(code, res.get('date'))
+                      time.sleep(1.5)
+                  except Exception as e:
+                      print('Broker prefetch error for', code, e)
           "
 
-      - name: Commit and push updated report cache
+      - name: Commit and push updated report and broker cache
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/cache/report_*.json
-          git diff --staged --quiet || git commit -m "自動更新台股盤後報告 $(date +'%Y-%m-%d')"
+          git add data/cache/report_*.json data/cache/broker_*.json
+          git diff --staged --quiet || git commit -m "自動更新台股盤後報告與主力分點快取 $(date +'%Y-%m-%d')"
           git push

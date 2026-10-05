@@ -183,18 +183,33 @@ if home_sel:
         st.session_state['target_stock'] = target_c
         st.switch_page("pages/1_📊_股票分析.py")
 
-st.markdown(
-    '<a href="/?nav=radar" target="_self" style="text-decoration:none !important;">'
-    '<div style="background:linear-gradient(90deg, #1E1B4B 0%, #311042 100%); border:1.5px solid #A855F7; border-radius:10px; padding:10px 14px; margin:8px 0 10px 0; display:flex; justify-content:space-between; align-items:center; cursor:pointer;">'
-    '<div>'
-    '<span style="font-size:18px; font-weight:bold; color:#F472B6;">🚀 今日強勢飆股雷達已上線！</span>'
-    '<div style="color:#CBD5E1; font-size:14px; margin-top:2px;">🔥 爆量長紅 ｜ 📈 多頭連續上漲 ｜ 👑 王者共振股點此查看 ➔</div>'
-    '</div>'
-    '<span style="background:#7C3AED; color:#FFF; font-weight:bold; font-size:14px; padding:5px 12px; border-radius:6px; flex-shrink:0;">立即看盤 ➔</span>'
-    '</div>'
-    '</a>',
-    unsafe_allow_html=True
-)
+col_b1, col_b2 = st.columns(2)
+with col_b1:
+    st.markdown(
+        '<a href="/?nav=radar" target="_self" style="text-decoration:none !important;">'
+        '<div style="background:linear-gradient(90deg, #1E1B4B 0%, #311042 100%); border:1.5px solid #A855F7; border-radius:10px; padding:10px 14px; margin:6px 0; display:flex; justify-content:space-between; align-items:center; cursor:pointer;">'
+        '<div>'
+        '<span style="font-size:17.5px; font-weight:bold; color:#F472B6;">🚀 今日強勢飆股雷達</span>'
+        '<div style="color:#CBD5E1; font-size:13.5px; margin-top:2px;">🔥 爆量長紅 ｜ 👑 王者共振股 ➔</div>'
+        '</div>'
+        '<span style="background:#7C3AED; color:#FFF; font-weight:bold; font-size:13.5px; padding:4px 10px; border-radius:6px; flex-shrink:0;">看盤 ➔</span>'
+        '</div>'
+        '</a>',
+        unsafe_allow_html=True
+    )
+with col_b2:
+    st.markdown(
+        '<a href="/隔日沖與分點研究" target="_self" style="text-decoration:none !important;">'
+        '<div style="background:linear-gradient(90deg, #172554 0%, #1E1B4B 100%); border:1.5px solid #38BDF8; border-radius:10px; padding:10px 14px; margin:6px 0; display:flex; justify-content:space-between; align-items:center; cursor:pointer;">'
+        '<div>'
+        '<span style="font-size:17.5px; font-weight:bold; color:#38BDF8;">🎯 隔日沖手法與分點研究</span>'
+        '<div style="color:#CBD5E1; font-size:13.5px; margin-top:2px;">🏛 主力分點足跡 ｜ ⚡ 盤中特大單點火 ➔</div>'
+        '</div>'
+        '<span style="background:#0284C7; color:#FFF; font-weight:bold; font-size:13.5px; padding:4px 10px; border-radius:6px; flex-shrink:0;">研究 ➔</span>'
+        '</div>'
+        '</a>',
+        unsafe_allow_html=True
+    )
 
 st.divider()
 

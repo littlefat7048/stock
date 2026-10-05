@@ -21,6 +21,82 @@ import yfinance as yf
 CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'cache')
 os.makedirs(CACHE_DIR, exist_ok=True)
 
+# 台灣股市著名九大隔日沖核心家族名冊庫（真實市場主力名單）
+KNOWN_OVERNIGHT_BROKERS = {
+    '凱基台北': {'group': '凱基幫', 'desc': '全台最大隔日沖巨鯨，慣用巨量鎖漲停、隔日開盤出脫'},
+    '凱基-台北': {'group': '凱基幫', 'desc': '全台最大隔日沖巨鯨，慣用巨量鎖漲停、隔日開盤出脫'},
+    '凱基松山': {'group': '凱基幫', 'desc': '知名短線隔日沖，專打強勢突破妖股'},
+    '凱基-松山': {'group': '凱基幫', 'desc': '知名短線隔日沖，專打強勢突破妖股'},
+    '凱基城中': {'group': '凱基幫', 'desc': '老牌短沖大戶，早盤急拉點火、盤中高點倒貨'},
+    '凱基-城中': {'group': '凱基幫', 'desc': '老牌短沖大戶，早盤急拉點火、盤中高點倒貨'},
+    '元大土城永寧': {'group': '土城永寧', 'desc': '百億極限鎖漲停大戶（永寧哥），隔天開高倒光'},
+    '元大-土城永寧': {'group': '土城永寧', 'desc': '百億極限鎖漲停大戶（永寧哥），隔天開高倒光'},
+    '元大總公司': {'group': '元大幫', 'desc': '量能巨鯨，常有當沖與隔日沖主力大單進出'},
+    '元大-總公司': {'group': '元大幫', 'desc': '量能巨鯨，常有當沖與隔日沖主力大單進出'},
+    '富邦建國': {'group': '建國幫', 'desc': '突破平台鎖漲停主力（建國哥），隔日開盤出脫'},
+    '富邦-建國': {'group': '建國幫', 'desc': '突破平台鎖漲停主力（建國哥），隔日開盤出脫'},
+    '富邦嘉義': {'group': '嘉義幫', 'desc': '老牌漲停敢死隊始祖，隔日開盤慣性摜壓倒貨'},
+    '富邦-嘉義': {'group': '嘉義幫', 'desc': '老牌漲停敢死隊始祖，隔日開盤慣性摜壓倒貨'},
+    '國票虎尾': {'group': '虎尾幫', 'desc': '中南部短沖主力（虎尾哥），鎖定中小型活潑股'},
+    '國票-虎尾': {'group': '虎尾幫', 'desc': '中南部短沖主力（虎尾哥），鎖定中小型活潑股'},
+    '元大虎尾': {'group': '虎尾幫', 'desc': '虎尾隔日沖集團主力之一'},
+    '元大-虎尾': {'group': '虎尾幫', 'desc': '虎尾隔日沖集團主力之一'},
+    '富邦虎尾': {'group': '虎尾幫', 'desc': '虎尾隔日沖集團主力之一'},
+    '富邦-虎尾': {'group': '虎尾幫', 'desc': '虎尾隔日沖集團主力之一'},
+    '美林': {'group': '外資量化', 'desc': '外資高頻程式單/假外資，盤中點火隔日快進快出'},
+    '美林證券': {'group': '外資量化', 'desc': '外資高頻程式單/假外資，盤中點火隔日快進快出'},
+    '摩根士丹利': {'group': '外資量化', 'desc': '外資量化高頻程式隔日沖'},
+    '台灣摩根士丹利': {'group': '外資量化', 'desc': '外資量化高頻程式隔日沖'},
+    '康和永和': {'group': '康和永和', 'desc': '專攻急拉強勢股隔日沖，出貨迅速不留情'},
+    '康和-永和': {'group': '康和永和', 'desc': '專攻急拉強勢股隔日沖，出貨迅速不留情'},
+    '光和彰化': {'group': '光和幫', 'desc': '彰化短沖主力，盤中鎖碼隔日開盤倒出'},
+    '光和-彰化': {'group': '光和幫', 'desc': '彰化短沖主力，盤中鎖碼隔日開盤倒出'},
+    '光和北門': {'group': '光和幫', 'desc': '中區隔日沖主力'},
+    '光和-北門': {'group': '光和幫', 'desc': '中區隔日沖主力'},
+    '統一敦南': {'group': '統一幫', 'desc': '敦南大戶，短線熱門股沖銷客集中營'},
+    '統一-敦南': {'group': '統一幫', 'desc': '敦南大戶，短線熱門股沖銷客集中營'},
+    '統一台中': {'group': '統一幫', 'desc': '台中短沖游資主力'},
+    '統一-台中': {'group': '統一幫', 'desc': '台中短沖游資主力'}
+}
+
+
+def identify_overnight_broker(broker_name: str, buy_lots: int = 0, sell_lots: int = 0) -> dict:
+    """
+    辨識券商分點是否為隔日沖/短沖主力
+    回傳: {'is_overnight': bool, 'is_known': bool, 'group': str, 'desc': str, 'badge': str}
+    """
+    name_clean = str(broker_name).replace(" ", "").replace("-", "")
+    for k, v in KNOWN_OVERNIGHT_BROKERS.items():
+        k_clean = k.replace(" ", "").replace("-", "")
+        if k_clean in name_clean or name_clean in k_clean:
+            return {
+                'is_overnight': True,
+                'is_known': True,
+                'group': v['group'],
+                'desc': v['desc'],
+                'badge': f"⚡ {v['group']}"
+            }
+
+    # 行為特徵判定：雙向巨量且淨額比小（當沖/短沖游資）
+    tot = buy_lots + sell_lots
+    net = abs(buy_lots - sell_lots)
+    if buy_lots >= 300 and sell_lots >= 300 and (net / max(1, tot) < 0.35):
+        return {
+            'is_overnight': True,
+            'is_known': False,
+            'group': '高頻短沖',
+            'desc': '盤中買賣雙向巨量，呈現典型短線沖銷特徵',
+            'badge': '⚡ 短沖游資'
+        }
+
+    return {
+        'is_overnight': False,
+        'is_known': False,
+        'group': '',
+        'desc': '',
+        'badge': ''
+    }
+
 
 def get_intraday_minute_data(stock_code: str, target_date_str: str = None) -> pd.DataFrame:
     """

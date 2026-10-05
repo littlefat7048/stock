@@ -33,7 +33,8 @@ from modules.broker_analysis import (
     get_intraday_minute_data,
     get_broker_trading_auto,
     parse_broker_excel,
-    match_broker_footprint
+    match_broker_footprint,
+    identify_overnight_broker
 )
 from utils.charts import create_intraday_footprint_chart
 from utils.helpers import get_searchable_stock_options, color_for_change
@@ -536,26 +537,35 @@ with tab_study:
         net_lots = active_buy_vol - active_sell_vol
         tot_lots = active_buy_vol + active_sell_vol
         net_ratio = abs(net_lots) / max(1, tot_lots)
-        is_day_trader_name = any(k in active_broker for k in ['凱基台北', '元大總公司', '虎尾', '富邦-建國', '光和', '元大-土城', '統一-台中', '城中'])
-        is_two_way = (is_day_trader_name or (active_buy_vol >= 300 and active_sell_vol >= 300 and net_ratio < 0.38))
+        on_info = identify_overnight_broker(active_broker, active_buy_vol, active_sell_vol)
+        is_two_way = on_info['is_overnight'] or (active_buy_vol >= 300 and active_sell_vol >= 300 and net_ratio < 0.38)
         is_buyer = not is_two_way and (net_lots > 0)
         is_seller = not is_two_way and (net_lots < 0)
 
-        if is_two_way:
+        if on_info['is_overnight']:
+            mode_badge = f"⚡ 知名隔日沖 · {on_info['group']}" if on_info['is_known'] else "⚡ 高頻短沖 / 隔日沖游資"
+            badge_bg = "rgba(245, 158, 11, 0.18)"
+            badge_border = "#F59E0B"
+            badge_color = "#F59E0B"
+            broker_desc_note = f"<div style='margin-top:6px; font-size:13px; color:#FBBF24; background:rgba(245,158,11,0.08); padding:4px 8px; border-radius:4px;'>💡 <b>主力操作特徵：</b>{on_info['desc']}</div>"
+        elif is_two_way:
             mode_badge = "⚡ 經典隔日沖 / 當沖大戶 🔴🟢"
             badge_bg = "rgba(245, 158, 11, 0.18)"
             badge_border = "#F59E0B"
             badge_color = "#F59E0B"
+            broker_desc_note = ""
         elif is_buyer:
             mode_badge = "🔴 波段吃貨 / 主力點火作多"
             badge_bg = "rgba(239, 68, 68, 0.18)"
             badge_border = "#EF4444"
             badge_color = "#EF4444"
+            broker_desc_note = ""
         else:
             mode_badge = "🟢 波段調節 / 外資逢高倒貨"
             badge_bg = "rgba(16, 185, 129, 0.18)"
             badge_border = "#10B981"
             badge_color = "#10B981"
+            broker_desc_note = ""
 
         footprint_items_html = ""
         if footprint:
@@ -586,6 +596,7 @@ with tab_study:
                     買進 <b style='color:#EF4444;'>{active_buy_vol:,}</b> 張 ｜ 賣出 <b style='color:#10B981;'>{active_sell_vol:,}</b> 張 ｜ 淨買賣 <b style='color:{badge_color};'>{net_lots:+d}</b> 張
                 </div>
             </div>
+            {broker_desc_note}
             <div style='margin-top:8px; display:flex; flex-wrap:wrap; align-items:center;'>
                 <span style='color:#94A3B8; font-size:12.5px; margin-right:4px;'>盤中推估足跡：</span>
                 {footprint_items_html if footprint_items_html else "<span style='color:#64748B; font-size:12.5px;'>無明顯集中階梯</span>"}
@@ -683,17 +694,27 @@ with tab_study:
             st.session_state['active_selected_broker'] = picked_broker_name
             st.rerun()
 
-        # 🔍 輔助關鍵字過濾框（選填）
-        kw_filter = st.text_input(
-            "🔍 或輸入關鍵字快速篩選下方表格：",
-            value="",
-            placeholder="例如：城中、元大、美商...",
-            key="broker_kw_filter"
-        ).strip()
+        # 🔍 輔助關鍵字與隔日沖主力快速篩選
+        c_kw, c_on = st.columns([1.6, 1.4])
+        with c_kw:
+            kw_filter = st.text_input(
+                "🔍 搜尋分點：",
+                value="",
+                placeholder="例如：城中、台北、美林...",
+                key="broker_kw_filter"
+            ).strip()
+        with c_on:
+            st.write("")
+            st.write("")
+            only_overnight = st.checkbox("⚡ 只看隔日沖主力", value=False, key="chk_only_overnight")
 
         # 篩選表格清單
         filtered_buyers = [b for b in buyers if kw_filter in b['name']] if kw_filter else buyers
         filtered_sellers = [s for s in sellers if kw_filter in s['name']] if kw_filter else sellers
+
+        if only_overnight:
+            filtered_buyers = [b for b in filtered_buyers if identify_overnight_broker(b['name'], b.get('buy_lots', 0), b.get('sell_lots', 0))['is_overnight']]
+            filtered_sellers = [s for s in filtered_sellers if identify_overnight_broker(s['name'], s.get('buy_lots', 0), s.get('sell_lots', 0))['is_overnight']]
 
         # 買方分點速選按鈕（點擊即時切換）
         if filtered_buyers:
@@ -735,9 +756,11 @@ with tab_study:
             is_active = (b['name'] == active_broker)
             row_cls = "class='active-row'" if is_active else ""
             active_marker = " 👈" if is_active else ""
+            b_on = identify_overnight_broker(b['name'], b.get('buy_lots', 0), b.get('sell_lots', 0))
+            on_badge = f"<span style='background:rgba(245,158,11,0.18); border:1px solid #F59E0B; color:#F59E0B; font-size:11px; padding:1px 4px; border-radius:3px; margin-left:5px;'>{b_on['badge']}</span>" if b_on['is_overnight'] else ""
             b_rows_html += (
                 f"<tr {row_cls}>"
-                f"<td style='color:#FFFFFF;'><span style='color:#64748B; margin-right:6px;'>{idx+1}</span><b>{b['name']}</b>{active_marker}</td>"
+                f"<td style='color:#FFFFFF;'><span style='color:#64748B; margin-right:6px;'>{idx+1}</span><b>{b['name']}</b>{on_badge}{active_marker}</td>"
                 f"<td style='text-align:right; color:#EF4444; font-weight:bold;'>{b['buy_lots']:,}</td>"
                 f"<td style='text-align:right; color:#CBD5E1;'>{b['buy_price']:,.2f}</td>"
                 f"</tr>"
@@ -796,9 +819,11 @@ with tab_study:
             is_active = (s['name'] == active_broker)
             row_cls = "class='active-row'" if is_active else ""
             active_marker = " 👈" if is_active else ""
+            s_on = identify_overnight_broker(s['name'], s.get('buy_lots', 0), s.get('sell_lots', 0))
+            on_badge = f"<span style='background:rgba(245,158,11,0.18); border:1px solid #F59E0B; color:#F59E0B; font-size:11px; padding:1px 4px; border-radius:3px; margin-left:5px;'>{s_on['badge']}</span>" if s_on['is_overnight'] else ""
             s_rows_html += (
                 f"<tr {row_cls}>"
-                f"<td style='color:#FFFFFF;'><span style='color:#64748B; margin-right:6px;'>{idx+1}</span><b>{s['name']}</b>{active_marker}</td>"
+                f"<td style='color:#FFFFFF;'><span style='color:#64748B; margin-right:6px;'>{idx+1}</span><b>{s['name']}</b>{on_badge}{active_marker}</td>"
                 f"<td style='text-align:right; color:#10B981; font-weight:bold;'>{s['sell_lots']:,}</td>"
                 f"<td style='text-align:right; color:#CBD5E1;'>{s['sell_price']:,.2f}</td>"
                 f"</tr>"

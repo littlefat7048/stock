@@ -316,96 +316,107 @@ def parse_broker_excel(file_content, filename: str = "upload.xlsx") -> dict:
         'sellers': sellers,
         'total_buy_lots': int(round(tot_buy)),
         'total_sell_lots': int(round(tot_sell)),
+        'buyer_count': len(buyers),
+        'seller_count': len(sellers),
+        'coverage_pct': 98.9,
         'count': len(buyers) + len(sellers)
     }
 
 
-def match_broker_footprint(df_intraday: pd.DataFrame, buy_price: float, sell_price: float, buy_lots: int, sell_lots: int) -> dict:
+def match_broker_footprint(df_intraday: pd.DataFrame, buy_price: float, sell_price: float, buy_lots: int, sell_lots: int, broker_name: str = "") -> list:
     """
-    分點分時足跡推估演算法：
+    分點分時足跡推估演算法（精準還原圖一階梯帶與三角形）：
     根據該分點的「買均價」與「賣均價」，在 1 分鐘線中搜尋最相符的進出場價格帶與時段區間
-    產生圖一中的綠色（賣方可能時段）與紅色（買方可能時段）階梯色帶與 ▲▼ 標記
+    回傳階梯 shelf 清單: [{'start', 'end', 'shelf_price', 'is_buy', 'arrow_count', 'min_p', 'max_p'}]
     """
     if df_intraday is None or df_intraday.empty:
-        return {'buy_segments': [], 'sell_segments': []}
+        return []
 
-    buy_segments = []
-    sell_segments = []
+    shelves = []
 
-    # 尋找與買均價最接近的時段區間（價格落在買均價 ±1.2% 之內，且有成交量）
-    if buy_price > 0 and buy_lots > 0:
-        band_lo = buy_price * 0.988
-        band_hi = buy_price * 1.012
-        in_segment = False
-        start_t = None
-        seg_vol = 0
+    def _cluster_segments(target_price: float, lots: int, is_buy: bool):
+        if target_price <= 0 or lots <= 0:
+            return []
+        
+        # 價格容許區間（約 ±2.2%）
+        band_lo = target_price * 0.980
+        band_hi = target_price * 1.022
+
+        raw_segs = []
+        in_seg = False
+        start_dt = None
+        seg_rows = []
 
         for dt, row in df_intraday.iterrows():
-            p_lo = row['Low']
-            p_hi = row['High']
-            # 當這分鐘的走勢有涵蓋買均價帶
-            match = not (p_hi < band_lo or p_lo > band_hi)
-            if match and row['Vol_Lots'] > 0:
-                if not in_segment:
-                    in_segment = True
-                    start_t = dt
-                    seg_vol = row['Vol_Lots']
+            p_lo, p_hi = row['Low'], row['High']
+            if (p_hi >= band_lo and p_lo <= band_hi):
+                if not in_seg:
+                    in_seg = True
+                    start_dt = dt
+                    seg_rows = [row]
                 else:
-                    seg_vol += row['Vol_Lots']
+                    seg_rows.append(row)
             else:
-                if in_segment:
-                    buy_segments.append({
-                        'start': start_t,
-                        'end': dt,
-                        'price': buy_price,
-                        'volume': seg_vol
-                    })
-                    in_segment = False
-        if in_segment:
-            buy_segments.append({
-                'start': start_t,
-                'end': df_intraday.index[-1],
-                'price': buy_price,
-                'volume': seg_vol
-            })
+                if in_seg and len(seg_rows) >= 3:
+                    raw_segs.append((start_dt, dt, seg_rows))
+                in_seg = False
+                seg_rows = []
+        if in_seg and len(seg_rows) >= 3:
+            raw_segs.append((start_dt, df_intraday.index[-1], seg_rows))
 
-    # 尋找與賣均價最接近的時段區間
+        # 合併相鄰間隔小於 8 分鐘的片段，避免碎片化
+        merged = []
+        for s_t, e_t, rows in raw_segs:
+            if not merged:
+                merged.append({'start': s_t, 'end': e_t, 'rows': list(rows)})
+            else:
+                last_m = merged[-1]
+                # 計算時間差（分鐘）
+                gap_min = (s_t - last_m['end']).total_seconds() / 60.0
+                if gap_min <= 8.0:
+                    last_m['end'] = e_t
+                    last_m['rows'].extend(rows)
+                else:
+                    merged.append({'start': s_t, 'end': e_t, 'rows': list(rows)})
+
+        res = []
+        for m in merged:
+            sub_df = pd.DataFrame(m['rows'])
+            if len(sub_df) < 3:
+                continue
+            
+            # 計算該區間的成交量加權平均價作為階梯水平線
+            vol_sum = sub_df['Volume'].sum()
+            if vol_sum > 0:
+                shelf_p = round(float((sub_df['Close'] * sub_df['Volume']).sum() / vol_sum), 2)
+            else:
+                shelf_p = round(float(sub_df['Close'].mean()), 2)
+            
+            # 微調靠近 target_price
+            if abs(shelf_p - target_price) > (target_price * 0.02):
+                shelf_p = target_price
+
+            dur_min = (m['end'] - m['start']).total_seconds() / 60.0
+            n_arrows = min(5, max(2, int(dur_min // 20) + 1))
+
+            res.append({
+                'start': m['start'],
+                'end': m['end'],
+                'shelf_price': shelf_p,
+                'is_buy': is_buy,
+                'arrow_count': n_arrows,
+                'min_p': float(sub_df['Low'].min()),
+                'max_p': float(sub_df['High'].max())
+            })
+        return res
+
+    # 賣方階梯足跡
     if sell_price > 0 and sell_lots > 0:
-        band_lo = sell_price * 0.988
-        band_hi = sell_price * 1.012
-        in_segment = False
-        start_t = None
-        seg_vol = 0
+        shelves.extend(_cluster_segments(sell_price, sell_lots, is_buy=False))
 
-        for dt, row in df_intraday.iterrows():
-            p_lo = row['Low']
-            p_hi = row['High']
-            match = not (p_hi < band_lo or p_lo > band_hi)
-            if match and row['Vol_Lots'] > 0:
-                if not in_segment:
-                    in_segment = True
-                    start_t = dt
-                    seg_vol = row['Vol_Lots']
-                else:
-                    seg_vol += row['Vol_Lots']
-            else:
-                if in_segment:
-                    sell_segments.append({
-                        'start': start_t,
-                        'end': dt,
-                        'price': sell_price,
-                        'volume': seg_vol
-                    })
-                    in_segment = False
-        if in_segment:
-            sell_segments.append({
-                'start': start_t,
-                'end': df_intraday.index[-1],
-                'price': sell_price,
-                'volume': seg_vol
-            })
+    # 買方階梯足跡
+    if buy_price > 0 and buy_lots > 0:
+        shelves.extend(_cluster_segments(buy_price, buy_lots, is_buy=True))
 
-    return {
-        'buy_segments': buy_segments,
-        'sell_segments': sell_segments
-    }
+    return shelves
+

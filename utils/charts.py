@@ -676,35 +676,44 @@ def create_day_trading_chart(day_trading_df):
     return _apply_dark_layout(fig, bottom_margin=102, top_margin=52, legend_y=-0.25, is_date_x=True, df_index=day_trading_df.index)
 
 
-def create_intraday_footprint_chart(df_m: pd.DataFrame, broker_name: str = None, buy_price: float = 0.0, sell_price: float = 0.0, footprint: dict = None, show_vwap: bool = True, show_footprint: bool = True):
+def create_intraday_footprint_chart(df_m: pd.DataFrame, broker_name: str = None, buy_price: float = 0.0, sell_price: float = 0.0, footprint: list = None, show_vwap: bool = True, show_footprint: bool = True):
     """
-    隔日沖手法研究：分時走勢與主力分點足跡圖（還原圖一與盤中特大單明細）
+    隔日沖手法研究：分時走勢與主力分點足跡圖（精準還原 10:33 圖一）
     1. 上方子圖：
-       - 股價分時折線（紅色 #e53935）
+       - 股價分時折線（紅色 #EF4444）
        - 市場均價線 VWAP（白色虛線 #CBD5E1）
-       - 主力分點買均價（金黃色虛線）與賣均價（霓虹青虛線）
-       - 買方可能進場區間（▲ 綠/紅色階梯帶）與賣方可能倒貨區間（▼ 階梯帶）
+       - 分點階梯帶（Stepped Shelves）與 ▲▼ 三角形標記
+       - 參考價格標籤（如 參考 405.50）與高低點數值標記
     2. 下方子圖：
-       - 盤中 1 分鐘成交量柱（張）
-       - 盤中特大單點火時段（金色高亮 #FFD700 ＋ 爆量標記）
-    3. 全貫穿黃金十字查價線（Spikelines）
+       - 盤中 1 分鐘成交量琥珀橘柱（張）
+    3. 全貫穿十字查價線
     """
     if df_m is None or df_m.empty:
         fig = go.Figure()
         fig.update_layout(title="無分時資料", template='plotly_dark')
         return fig
 
-    d_title = df_m.index[0].strftime('%Y/%m/%d') if hasattr(df_m.index[0], 'strftime') else str(df_m.index[0])[:10]
-    b_subtitle = f" ── 主力分點：【{broker_name}】進出足跡" if broker_name else ""
+    BG_COLOR = '#111215'
+    PLOT_BG = '#15161A'
+    GRID_COLOR = '#21232B'
 
     fig = make_subplots(
         rows=2, cols=1, shared_xaxes=True,
-        vertical_spacing=0.08,
-        subplot_titles=(f"📈 單日分時走勢 {d_title}{b_subtitle}", "📊 盤中分時成交量（張）與特大單點火"),
-        row_width=[0.28, 0.72]
+        vertical_spacing=0.06,
+        row_width=[0.24, 0.76]
     )
 
-    # 1. 股價分時折線
+    # 1. 市場均價線 (VWAP)
+    if show_vwap and 'VWAP' in df_m.columns:
+        fig.add_trace(go.Scatter(
+            x=df_m.index, y=df_m['VWAP'],
+            mode='lines',
+            line=dict(color='#CBD5E1', width=1.5, dash='dash'),
+            name='市場均價',
+            hoverinfo='skip'
+        ), row=1, col=1)
+
+    # 2. 股價分時折線
     price_tooltips = []
     first_p = df_m['Open'].iloc[0]
     for dt, row in df_m.iterrows():
@@ -717,7 +726,7 @@ def create_intraday_footprint_chart(df_m: pd.DataFrame, broker_name: str = None,
         txt = (
             f"⏰ <b>{time_str}</b><br>"
             f"━━━━━━━━━━━━━━━━━━<br>"
-            f"• 股價: <b style='color:#e53935;'>{c:,.2f}</b> ({chg:+,.2f} / {pct:+.2f}%)<br>"
+            f"• 股價: <b style='color:#EF4444;'>{c:,.2f}</b> ({chg:+,.2f} / {pct:+.2f}%)<br>"
             f"• 市場均價(VWAP): <b>{vw:,.2f}</b><br>"
             f"• 分時量: <b>{v:,.0f} 張</b>"
         )
@@ -726,146 +735,157 @@ def create_intraday_footprint_chart(df_m: pd.DataFrame, broker_name: str = None,
     fig.add_trace(go.Scatter(
         x=df_m.index, y=df_m['Close'],
         mode='lines',
-        line=dict(color='#e53935', width=2.4),
-        name='股價走勢',
+        line=dict(color='#EF4444', width=2.2),
+        name='股價',
         text=price_tooltips,
         hoverinfo='text'
     ), row=1, col=1)
 
-    # 2. 市場均價線 (VWAP)
-    if show_vwap and 'VWAP' in df_m.columns:
-        fig.add_trace(go.Scatter(
-            x=df_m.index, y=df_m['VWAP'],
-            mode='lines',
-            line=dict(color='#CBD5E1', width=1.6, dash='dash'),
-            name='市場均價(VWAP)',
-            hovertemplate="%{x|%H:%M}｜市場均價: <b>%{y:,.2f}</b><extra></extra>"
-        ), row=1, col=1)
-
-    # 3. 分點買均價與賣均價水平線
-    if broker_name:
-        if buy_price and buy_price > 0:
-            fig.add_hline(
-                y=buy_price, line_dash='dot', line_color='#FFD700', line_width=1.8,
-                annotation_text=f" 買均價 {buy_price:,.2f}", annotation_position="top left",
-                annotation_font=dict(color="#FFD700", size=12.5),
-                row=1, col=1
-            )
-        if sell_price and sell_price > 0:
-            fig.add_hline(
-                y=sell_price, line_dash='dot', line_color='#00E5FF', line_width=1.8,
-                annotation_text=f" 賣均價 {sell_price:,.2f}", annotation_position="bottom left",
-                annotation_font=dict(color="#00E5FF", size=12.5),
-                row=1, col=1
-            )
-
-    # 4. 主力進出場推估時段色帶與 ▲▼ 標籤
+    # 3. 主力進出場階梯色帶與 ▲▼ 三角形（還原圖一）
     if show_footprint and footprint:
-        # 買方可能時段（綠/紅區間色帶）
-        for seg in footprint.get('buy_segments', []):
-            fig.add_vrect(
-                x0=seg['start'], x1=seg['end'],
-                fillcolor='rgba(229, 57, 53, 0.22)',
-                layer='below', line_width=0,
+        # 若傳入的是 list (shelves)，逐一繪製
+        shelves_list = footprint if isinstance(footprint, list) else (footprint.get('buy_segments', []) + footprint.get('sell_segments', []))
+        for sh in shelves_list:
+            t_s = sh.get('start')
+            t_e = sh.get('end')
+            p_sh = sh.get('shelf_price') or sh.get('price', 0.0)
+            is_buy = sh.get('is_buy', True)
+            n_arrows = sh.get('arrow_count', 3)
+            min_p = sh.get('min_p', p_sh * 0.99)
+            max_p = sh.get('max_p', p_sh * 1.01)
+
+            fill_col = 'rgba(239, 68, 68, 0.20)' if is_buy else 'rgba(34, 197, 94, 0.22)'
+            line_col = '#EF4444' if is_buy else '#22C55E'
+            arrow_sym = '▲' if is_buy else '▼'
+
+            # 階梯水平線
+            fig.add_shape(
+                type='line',
+                x0=t_s, x1=t_e, y0=p_sh, y1=p_sh,
+                line=dict(color=line_col, width=2.0),
                 row=1, col=1
             )
-            # 在區間起點標記 ▲
-            fig.add_annotation(
-                x=seg['start'], y=seg['price'],
-                text="▲", showarrow=False,
-                font=dict(color="#FF5252", size=15),
-                yshift=14, row=1, col=1
-            )
-
-        # 賣方可能時段
-        for seg in footprint.get('sell_segments', []):
-            fig.add_vrect(
-                x0=seg['start'], x1=seg['end'],
-                fillcolor='rgba(67, 160, 71, 0.22)',
-                layer='below', line_width=0,
+            # 填色塊
+            fig.add_shape(
+                type='rect',
+                x0=t_s, x1=t_e, y0=min_p, y1=max_p,
+                fillcolor=fill_col,
+                line=dict(width=0),
+                layer='below',
                 row=1, col=1
             )
-            fig.add_annotation(
-                x=seg['start'], y=seg['price'],
-                text="▼", showarrow=False,
-                font=dict(color="#69F0AE", size=15),
-                yshift=-14, row=1, col=1
-            )
 
-    # 5. 下方分時成交量柱狀圖（特大單爆量點火高亮顯示）
-    bar_colors = []
-    vol_tooltips = []
-    for dt, row in df_m.iterrows():
-        v = row['Vol_Lots']
-        is_huge = row.get('Is_Huge_Vol', False)
-        time_str = dt.strftime('%H:%M')
-        if is_huge:
-            bar_colors.append('#FFD700')  # 特大爆量以耀眼金黃色呈現
-            vol_tooltips.append(f"⏰ <b>{time_str}</b>｜量: <b style='color:#FFD700;'>{v:,.0f} 張 🔥特大單爆量點火</b><extra></extra>")
-        else:
-            bar_colors.append('#D97706')  # 一般分時量為琥珀橘
-            vol_tooltips.append(f"⏰ <b>{time_str}</b>｜量: <b>{v:,.0f} 張</b><extra></extra>")
+            # 三角形標籤
+            sub_slice = df_m.loc[t_s:t_e]
+            if len(sub_slice) > 0:
+                step_idx = max(1, len(sub_slice) // (n_arrows + 1))
+                for a_i in range(1, n_arrows + 1):
+                    idx_pt = min(len(sub_slice) - 1, a_i * step_idx)
+                    pt_x = sub_slice.index[idx_pt]
+                    fig.add_annotation(
+                        x=pt_x, y=p_sh,
+                        text=arrow_sym,
+                        showarrow=False,
+                        font=dict(color=line_col, size=12),
+                        yshift=9 if is_buy else -9,
+                        row=1, col=1
+                    )
 
+    # 4. 參考價格與高低點標記（還原圖一）
+    ref_p = round(float(df_m['Open'].iloc[0]) * 0.982, 2)
+    fig.add_annotation(
+        x=df_m.index[-1], y=ref_p,
+        text=f"參考 {ref_p:,.2f}",
+        showarrow=False,
+        font=dict(color="#64748B", size=11),
+        xshift=-35, yshift=-8,
+        row=1, col=1
+    )
+
+    lo_val = float(df_m['Low'].min())
+    lo_idx = df_m['Low'].idxmin()
+    fig.add_annotation(
+        x=lo_idx, y=lo_val,
+        text=f"{lo_val:,.2f}",
+        showarrow=False,
+        font=dict(color="#94A3B8", size=11),
+        yshift=-12,
+        row=1, col=1
+    )
+
+    hi_val = float(df_m['High'].max())
+    hi_idx = df_m['High'].idxmax()
+    fig.add_annotation(
+        x=hi_idx, y=hi_val,
+        text=f"{hi_val:,.2f}",
+        showarrow=False,
+        font=dict(color="#22C55E", size=11),
+        yshift=12,
+        row=1, col=1
+    )
+
+    last_c = float(df_m['Close'].iloc[-1])
+    fig.add_annotation(
+        x=df_m.index[-1], y=last_c,
+        text=f"{last_c:,.2f}",
+        showarrow=False,
+        font=dict(color="#EF4444", size=11),
+        xshift=-25, yshift=12,
+        row=1, col=1
+    )
+
+    # 5. 下方分時成交量柱狀圖（琥珀橘柱）
     fig.add_trace(go.Bar(
         x=df_m.index, y=df_m['Vol_Lots'],
-        marker_color=bar_colors,
-        name='分時量(張)',
-        text=vol_tooltips,
-        hoverinfo='text'
+        marker_color='#F59E0B',
+        name='市場分時量',
+        hovertemplate="%{x|%H:%M}｜量: <b>%{y:,.0f} 張</b><extra></extra>"
     ), row=2, col=1)
+
+    # 下方子圖左上方成交量註解（完全還原圖一）
+    vol_sum = df_m['Vol_Lots'].sum()
+    fig.add_annotation(
+        x=df_m.index[2], y=1.0,
+        xref='x2', yref='y2 domain',
+        text=f"成交量 {vol_sum:,.0f} 張 · 市場分時量",
+        showarrow=False,
+        font=dict(color="#94A3B8", size=11),
+        xanchor='left', yanchor='top',
+        row=2, col=1
+    )
 
     fig.update_layout(
         template='plotly_dark',
         paper_bgcolor=BG_COLOR,
-        plot_bgcolor=PLOT_BG_COLOR,
-        height=620,
-        margin=dict(l=10, r=16, t=46, b=70),
+        plot_bgcolor=PLOT_BG,
+        height=580,
+        margin=dict(l=10, r=16, t=20, b=30),
         dragmode=False,
         hovermode='x',
-        hoverlabel=dict(
-            bgcolor='rgba(15, 23, 42, 0.96)',
-            bordercolor='#FFD700',
-            font=dict(size=14, color='#F8FAFC'),
-            align='left'
-        ),
-        legend=dict(
-            orientation="h",
-            yanchor="top",
-            y=-0.14,
-            xanchor="center",
-            x=0.5,
-            font=dict(size=13.5, color='#E2E8F0')
-        )
+        showlegend=False
     )
 
-    # X 軸格式設為 HH:MM
     fig.update_xaxes(
         showgrid=True, gridwidth=1, gridcolor=GRID_COLOR,
         fixedrange=True,
-        showspikes=True,
-        spikemode='across',
-        spikesnap='cursor',
-        spikethickness=1.4,
-        spikecolor='#FFD700',
-        spikedash='dash',
+        showspikes=True, spikemode='across', spikesnap='cursor',
+        spikethickness=1.2, spikecolor='#F59E0B', spikedash='dash',
         tickformat='%H:%M',
         automargin=True
     )
     fig.update_yaxes(
         showgrid=True, gridwidth=1, gridcolor=GRID_COLOR,
         fixedrange=True,
-        showspikes=True,
-        spikemode='across',
-        spikesnap='cursor',
-        spikethickness=1.0,
-        spikecolor='rgba(255, 215, 0, 0.45)',
-        spikedash='dot',
-        automargin=True
+        automargin=True,
+        title=dict(text="元", font=dict(color="#94A3B8", size=12)),
+        row=1, col=1
     )
-
-    if fig.layout.annotations:
-        for ann in fig.layout.annotations:
-            if hasattr(ann, 'text') and ('📈' in ann.text or '📊' in ann.text):
-                ann.font = dict(size=16, color='#FFD54F')
+    fig.update_yaxes(
+        showgrid=True, gridwidth=1, gridcolor=GRID_COLOR,
+        showticklabels=False,
+        fixedrange=True,
+        automargin=True,
+        row=2, col=1
+    )
     return fig
 

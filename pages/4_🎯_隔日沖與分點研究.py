@@ -400,15 +400,70 @@ with tab_study:
     cov_pct = broker_data.get('coverage_pct', 98.9)
     source_tag = broker_data.get('source', 'Excel 匯入')
 
-    # 預設追蹤分點
-    default_active_broker = "凱基-城中"
-    all_b_names = [b['name'] for b in buyers] + [s['name'] for s in sellers]
-    if default_active_broker not in all_b_names and all_b_names:
-        default_active_broker = all_b_names[0]
+    # 彙總當日所有分點（去重並依交易總張數排序）
+    all_brokers_dict = {}
+    for b in buyers:
+        nm = b['name']
+        all_brokers_dict[nm] = {
+            'name': nm,
+            'buy_lots': b.get('buy_lots', 0),
+            'sell_lots': b.get('sell_lots', 0),
+            'buy_price': b.get('buy_price', 0.0),
+            'sell_price': b.get('sell_price', 0.0),
+            'tot_vol': b.get('buy_lots', 0) + b.get('sell_lots', 0)
+        }
+    for s in sellers:
+        nm = s['name']
+        if nm not in all_brokers_dict:
+            all_brokers_dict[nm] = {
+                'name': nm,
+                'buy_lots': s.get('buy_lots', 0),
+                'sell_lots': s.get('sell_lots', 0),
+                'buy_price': s.get('buy_price', 0.0),
+                'sell_price': s.get('sell_price', 0.0),
+                'tot_vol': s.get('buy_lots', 0) + s.get('sell_lots', 0)
+            }
+        else:
+            all_brokers_dict[nm]['sell_lots'] = max(all_brokers_dict[nm]['sell_lots'], s.get('sell_lots', 0))
+            all_brokers_dict[nm]['sell_price'] = max(all_brokers_dict[nm]['sell_price'], s.get('sell_price', 0.0))
+            all_brokers_dict[nm]['tot_vol'] = all_brokers_dict[nm]['buy_lots'] + all_brokers_dict[nm]['sell_lots']
 
-    # 目前選定分點（支援 session_state 記憶）
-    search_kw = st.session_state.get('broker_search_kw', default_active_broker)
-    active_broker = search_kw if search_kw else default_active_broker
+    sorted_brokers = sorted(all_brokers_dict.values(), key=lambda x: x['tot_vol'], reverse=True)
+
+    # 建立下拉選單選項（清楚標示買賣張數與均價）
+    broker_options = []
+    lbl_to_name = {}
+    name_to_lbl = {}
+    for b in sorted_brokers:
+        nm = b['name']
+        bl = b['buy_lots']
+        sl = b['sell_lots']
+        bp = b['buy_price']
+        sp = b['sell_price']
+        if bl > 0 and sl > 0:
+            lbl = f"🔴🟢 {nm} (買 {bl:,} 張 / 賣 {sl:,} 張 · 均價 {bp:,.2f}/{sp:,.2f})"
+        elif bl > 0:
+            lbl = f"🔴 {nm} (買進 {bl:,} 張 · 買均 {bp:,.2f})"
+        else:
+            lbl = f"🟢 {nm} (賣出 {sl:,} 張 · 賣均 {sp:,.2f})"
+        broker_options.append(lbl)
+        lbl_to_name[lbl] = nm
+        name_to_lbl[nm] = lbl
+
+    if not broker_options:
+        broker_options = ["無分點資料"]
+        lbl_to_name["無分點資料"] = "無分點資料"
+        name_to_lbl["無分點資料"] = "無分點資料"
+
+    # 預設追蹤分點
+    default_broker = "凱基-城中"
+    if default_broker not in name_to_lbl and sorted_brokers:
+        default_broker = sorted_brokers[0]['name']
+
+    # 讀取當前選擇之分點
+    active_broker = st.session_state.get('active_selected_broker', default_broker)
+    if active_broker not in name_to_lbl and sorted_brokers:
+        active_broker = sorted_brokers[0]['name']
 
     # 取得目前選取分點的買賣均價與張數
     cur_buy_info = next((b for b in buyers if b['name'] == active_broker), None)
@@ -449,8 +504,9 @@ with tab_study:
                 f"<div style='font-size:15px; color:#CBD5E1; font-weight:600; padding-top:4px;'>"
                 f"單日走勢 {query_date.strftime('%Y / %m / %d')} {w_str}"
                 f"</div>"
-                f"<div style='display:flex; align-items:center; gap:6px; font-size:15px; font-weight:bold; color:#FFFFFF; margin-top:4px;'>"
-                f"<span style='color:#F59E0B;'>•</span> {active_broker}"
+                f"<div style='display:flex; align-items:center; gap:6px; font-size:16px; font-weight:bold; color:#FFFFFF; margin-top:4px;'>"
+                f"<span style='color:#F59E0B;'>•</span> 追蹤主力：<span style='color:#F59E0B;'>{active_broker}</span>"
+                f"<span style='font-size:13px; color:#94A3B8; font-weight:normal; margin-left:8px;'>(買進 {active_buy_vol:,} 張 / 賣出 {active_sell_vol:,} 張)</span>"
                 f"</div>",
                 unsafe_allow_html=True
             )
@@ -462,8 +518,8 @@ with tab_study:
                 chk_footprint = st.checkbox("分點痕跡", value=True, key="chk_fp")
             st.markdown(
                 "<div style='display:flex; justify-content:flex-end; align-items:center; gap:16px; font-size:13px; color:#94A3B8; margin-top:2px;'>"
-                "<span><span style='color:#EF4444; font-weight:bold;'>─</span> 股價</span>"
-                "<span><span style='color:#CBD5E1; font-weight:bold;'>┄┄</span> 市場均價</span>"
+                "<span><span style='color:#FF3344; font-weight:bold;'>─</span> 股價</span>"
+                "<span><span style='color:#F8FAFC; font-weight:bold;'>┄┄</span> 市場均價</span>"
                 "</div>",
                 unsafe_allow_html=True
             )
@@ -499,8 +555,8 @@ with tab_study:
         with c_bot1:
             st.markdown(
                 "<div style='display:flex; align-items:center; gap:20px; font-size:13px; color:#94A3B8; padding-top:4px;'>"
-                "<span><b style='color:#EF4444;'>▲</b> 買方可能時段</span>"
-                "<span><b style='color:#10B981;'>▼</b> 賣方可能時段</span>"
+                "<span><b style='color:#FF2D55; font-size:15px;'>▲</b> 買方可能時段（吃貨/點火）</span>"
+                "<span><b style='color:#00E676; font-size:15px;'>▼</b> 賣方可能時段（倒貨/調節）</span>"
                 "</div>",
                 unsafe_allow_html=True
             )
@@ -514,33 +570,63 @@ with tab_study:
                 - **雙向操作**：若同一個分點同時出現買進與賣出階梯帶，代表該券商分點進行了「當日沖銷」或「換手套利」操作。
                 """)
 
-    # 右側：當日分點卡片
+    # 右側：當日分點面板（支援全方位下拉選擇與速選標籤）
     with col_brokers:
         # 分點標題列
         st.markdown(
-            "<div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;'>"
+            "<div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;'>"
             "<span style='font-size:16px; font-weight:bold; color:#FFFFFF;'>當日分點</span>"
-            "<span style='font-size:12px; color:#94A3B8;'>點選分點，查看左側足跡</span>"
+            "<span style='font-size:12px; color:#94A3B8;'>點選或下拉即可切換足跡</span>"
             "</div>",
             unsafe_allow_html=True
         )
 
-        # 搜尋輸入框（還原圖一帶邊框搜尋框）
-        search_kw = st.text_input(
-            "搜尋分點",
-            value=default_active_broker,
-            placeholder="搜尋分點名稱...",
-            label_visibility="collapsed",
-            key="broker_search_kw"
+        # 🔥 Top 3 主力分點快捷鍵（一鍵秒選查看足跡）
+        top_k = min(3, len(sorted_brokers))
+        if top_k > 0:
+            top_chips_cols = st.columns(top_k)
+            for c_i, b_item in enumerate(sorted_brokers[:top_k]):
+                with top_chips_cols[c_i]:
+                    is_cur = (b_item['name'] == active_broker)
+                    btn_type = "primary" if is_cur else "secondary"
+                    # 依多空標記前綴
+                    b_mark = "🔴" if b_item['buy_lots'] >= b_item['sell_lots'] else "🟢"
+                    if st.button(f"{b_mark} {b_item['name']}", key=f"chip_b_{b_item['name']}", type=btn_type, use_container_width=True):
+                        st.session_state['active_selected_broker'] = b_item['name']
+                        if b_item['name'] in name_to_lbl:
+                            st.session_state['broker_selectbox_widget'] = name_to_lbl[b_item['name']]
+                        st.rerun()
+
+        # 🎯 分點下拉選擇選單（完整條列所有分點名稱與買賣量）
+        cur_opt_lbl = name_to_lbl.get(active_broker, broker_options[0])
+        cur_opt_idx = broker_options.index(cur_opt_lbl) if cur_opt_lbl in broker_options else 0
+
+        picked_broker_lbl = st.selectbox(
+            "🎯 下拉選擇要追蹤的分點（免打字）：",
+            options=broker_options,
+            index=cur_opt_idx,
+            key="broker_selectbox_widget"
+        )
+        picked_broker_name = lbl_to_name.get(picked_broker_lbl, active_broker)
+        if picked_broker_name != active_broker:
+            st.session_state['active_selected_broker'] = picked_broker_name
+            st.rerun()
+
+        # 🔍 輔助關鍵字過濾框（選填）
+        kw_filter = st.text_input(
+            "🔍 或輸入關鍵字快速篩選下方表格：",
+            value="",
+            placeholder="例如：城中、元大、美商...",
+            key="broker_kw_filter"
         ).strip()
 
-        # 篩選分點
-        filtered_buyers = [b for b in buyers if search_kw in b['name']] if search_kw else buyers
-        filtered_sellers = [s for s in sellers if search_kw in s['name']] if search_kw else sellers
+        # 篩選表格清單
+        filtered_buyers = [b for b in buyers if kw_filter in b['name']] if kw_filter else buyers
+        filtered_sellers = [s for s in sellers if kw_filter in s['name']] if kw_filter else sellers
 
-        # 卡片 1：買方分點（完全還原圖一）
+        # 卡片 1：買方分點（完全還原圖一，高亮目前選定分點）
         st.markdown(f"""
-        <div class='broker-card'>
+        <div class='broker-card' style='margin-top:10px;'>
             <div class='broker-card-header'>
                 <div style='display:flex; align-items:center;'>
                     <span class='broker-badge-buy'>買</span>
@@ -563,12 +649,13 @@ with tab_study:
         """, unsafe_allow_html=True)
 
         b_rows_html = ""
-        for idx, b in enumerate(filtered_buyers[:20]):
+        for idx, b in enumerate(filtered_buyers[:15]):
             is_active = (b['name'] == active_broker)
             row_cls = "class='active-row'" if is_active else ""
+            active_marker = " 👈" if is_active else ""
             b_rows_html += (
                 f"<tr {row_cls}>"
-                f"<td style='color:#FFFFFF;'><span style='color:#64748B; margin-right:6px;'>{idx+1}</span>{b['name']}</td>"
+                f"<td style='color:#FFFFFF;'><span style='color:#64748B; margin-right:6px;'>{idx+1}</span><b>{b['name']}</b>{active_marker}</td>"
                 f"<td style='text-align:right; color:#EF4444; font-weight:bold;'>{b['buy_lots']:,}</td>"
                 f"<td style='text-align:right; color:#CBD5E1;'>{b['buy_price']:,.2f}</td>"
                 f"</tr>"
@@ -587,7 +674,7 @@ with tab_study:
         </div>
         """, unsafe_allow_html=True)
 
-        # 卡片 2：賣方分點（完全還原圖一）
+        # 卡片 2：賣方分點（完全還原圖一，高亮目前選定分點）
         st.markdown(f"""
         <div class='broker-card'>
             <div class='broker-card-header'>
@@ -612,12 +699,13 @@ with tab_study:
         """, unsafe_allow_html=True)
 
         s_rows_html = ""
-        for idx, s in enumerate(filtered_sellers[:20]):
+        for idx, s in enumerate(filtered_sellers[:15]):
             is_active = (s['name'] == active_broker)
             row_cls = "class='active-row'" if is_active else ""
+            active_marker = " 👈" if is_active else ""
             s_rows_html += (
                 f"<tr {row_cls}>"
-                f"<td style='color:#FFFFFF;'><span style='color:#64748B; margin-right:6px;'>{idx+1}</span>{s['name']}</td>"
+                f"<td style='color:#FFFFFF;'><span style='color:#64748B; margin-right:6px;'>{idx+1}</span><b>{s['name']}</b>{active_marker}</td>"
                 f"<td style='text-align:right; color:#10B981; font-weight:bold;'>{s['sell_lots']:,}</td>"
                 f"<td style='text-align:right; color:#CBD5E1;'>{s['sell_price']:,.2f}</td>"
                 f"</tr>"

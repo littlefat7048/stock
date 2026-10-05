@@ -735,7 +735,7 @@ def create_intraday_footprint_chart(df_m: pd.DataFrame, broker_name: str = None,
     fig.add_trace(go.Scatter(
         x=df_m.index, y=df_m['Close'],
         mode='lines',
-        line=dict(color='#EF4444', width=2.2),
+        line=dict(color='#FF3344', width=2.5),
         name='股價',
         text=price_tooltips,
         hoverinfo='text'
@@ -754,18 +754,18 @@ def create_intraday_footprint_chart(df_m: pd.DataFrame, broker_name: str = None,
             min_p = sh.get('min_p', p_sh * 0.99)
             max_p = sh.get('max_p', p_sh * 1.01)
 
-            fill_col = 'rgba(239, 68, 68, 0.20)' if is_buy else 'rgba(34, 197, 94, 0.22)'
-            line_col = '#EF4444' if is_buy else '#22C55E'
+            fill_col = 'rgba(239, 68, 68, 0.36)' if is_buy else 'rgba(0, 230, 118, 0.35)'
+            line_col = '#FF2D55' if is_buy else '#00E676'
             arrow_sym = '▲' if is_buy else '▼'
 
-            # 階梯水平線
+            # 階梯水平線（加粗高對比）
             fig.add_shape(
                 type='line',
                 x0=t_s, x1=t_e, y0=p_sh, y1=p_sh,
-                line=dict(color=line_col, width=2.0),
+                line=dict(color=line_col, width=2.8),
                 row=1, col=1
             )
-            # 填色塊
+            # 填色塊（鮮明緊湊）
             fig.add_shape(
                 type='rect',
                 x0=t_s, x1=t_e, y0=min_p, y1=max_p,
@@ -775,7 +775,7 @@ def create_intraday_footprint_chart(df_m: pd.DataFrame, broker_name: str = None,
                 row=1, col=1
             )
 
-            # 三角形標籤
+            # 三角形標籤（清晰大尺寸）
             sub_slice = df_m.loc[t_s:t_e]
             if len(sub_slice) > 0:
                 step_idx = max(1, len(sub_slice) // (n_arrows + 1))
@@ -786,8 +786,8 @@ def create_intraday_footprint_chart(df_m: pd.DataFrame, broker_name: str = None,
                         x=pt_x, y=p_sh,
                         text=arrow_sym,
                         showarrow=False,
-                        font=dict(color=line_col, size=12),
-                        yshift=9 if is_buy else -9,
+                        font=dict(color=line_col, size=15),
+                        yshift=10 if is_buy else -10,
                         row=1, col=1
                     )
 

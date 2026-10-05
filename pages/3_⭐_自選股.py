@@ -19,7 +19,8 @@ from utils.helpers import (
     load_watchlist, save_watchlist,
     resolve_stock_query, get_tw_stock_chinese_info,
     get_concept_tags_for_stock, load_concept_data,
-    get_common_css, get_top_nav_html, render_quote_table_html
+    get_common_css, get_top_nav_html, render_quote_table_html,
+    get_searchable_stock_options
 )
 from modules.data_fetcher import get_batch_quotes_with_intraday
 from modules.screener import scan_market_signals
@@ -32,15 +33,23 @@ st.title("⭐ 我的台股自選股看盤清單")
 
 watchlist = load_watchlist()
 
-col1, col2, col3 = st.columns([1.8, 2.0, 1.2])
+w_options, w_c2l, w_l2c = get_searchable_stock_options()
+col1, col2, col3 = st.columns([2.0, 1.8, 1.2])
 with col1:
-    new_input = st.text_input("➕ 輸入股票代號或中文股名", placeholder="例如：5484、慧友、3081、聯亞", label_visibility="collapsed")
+    new_sel = st.selectbox(
+        "➕ 輸入股票代號或中文股名即時篩選",
+        options=w_options,
+        index=None,
+        placeholder="➕ 輸入代號或股名即時搜尋（如：國、23、台積電）...",
+        label_visibility="collapsed",
+        key="add_watch_sel"
+    )
 with col2:
     new_note = st.text_input("📝 投資備註（選填）", placeholder="備註（選填）：如 38元支撐買進", label_visibility="collapsed")
 with col3:
     if st.button("➕ 加入自選", use_container_width=True):
-        if new_input:
-            code = resolve_stock_query(new_input)
+        if new_sel:
+            code = w_l2c.get(new_sel, resolve_stock_query(new_sel))
             cinfo = get_tw_stock_chinese_info(code)
             if code not in [s['code'] for s in watchlist]:
                 watchlist.append({
@@ -53,6 +62,8 @@ with col3:
                 st.rerun()
             else:
                 st.warning(f"{cinfo.get('name', code)} ({code}) 已經在自選股清單中！")
+        else:
+            st.warning("請先在左側搜尋並選擇要加入的股票！")
 
 if not watchlist:
     st.info("目前尚未加入任何自選股。您可以在上方輸入代號/股名新增，或在「股票分析」頁面點擊加入！")

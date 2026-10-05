@@ -71,7 +71,7 @@ from modules.daily_report import (
     parse_stock_codes, get_available_dates
 )
 from modules.data_fetcher import get_twse_institutional_summary
-from utils.helpers import get_common_css, get_top_nav_html
+from utils.helpers import get_common_css, get_top_nav_html, get_searchable_stock_options, resolve_stock_query
 
 # ── 注入自訂響應式 CSS 與頂部導覽列 ──────────────────────
 st.markdown(get_common_css(), unsafe_allow_html=True)
@@ -154,21 +154,34 @@ with st.sidebar:
 st.title("📊 台股每日盤後分析報告")
 st.caption(f"選取報告日期：{selected_date[:4]}/{selected_date[4:6]}/{selected_date[6:]} ｜ 每日盤後定時自動同步")
 
-st.markdown("<div style='font-size:18px; font-weight:bold; color:#00D4AA; margin-top:4px; margin-bottom:2px;'>🔍 直接輸入台股代號或中文股名查詢：</div>", unsafe_allow_html=True)
-hc1, hc2 = st.columns([3.6, 1.4])
+st.markdown("<div style='font-size:18px; font-weight:bold; color:#00D4AA; margin-top:4px; margin-bottom:2px;'>🔍 台股即時智慧搜尋（輸入中文或數字即時聯想篩選，點選立即切換）：</div>", unsafe_allow_html=True)
+h_options, h_c2l, h_l2c = get_searchable_stock_options()
+hc1, hc2 = st.columns([3.8, 1.2])
 with hc1:
-    home_stock_q = st.text_input(
+    home_sel = st.selectbox(
         "輸入台股代號或中文股名",
-        placeholder="點此輸入：例如 5484、慧友、2330、台積電...",
-        key="home_direct_search",
+        options=h_options,
+        index=None,
+        placeholder="點此輸入：例如 國、23、國巨、國泰金、台積電...",
+        key="home_search_live",
+        help="輸入中文（如「國」）或數字（如「23」），下拉選單即時聯想篩選，點擊立即跳轉個股分析！",
         label_visibility="collapsed"
     )
 with hc2:
-    home_search_btn = st.button("🚀 立即分析", key="home_search_btn", use_container_width=True)
+    home_manual = st.popover("✏️ 手動輸入", use_container_width=True)
+    with home_manual:
+        st.caption("手動輸入任意代號或股名：")
+        h_raw = st.text_input("台股代號或名稱", key="h_raw_input", placeholder="例如 2327 或 國巨")
+        if st.button("🚀 立即分析", key="h_raw_btn", use_container_width=True):
+            if h_raw.strip():
+                st.session_state['target_stock'] = resolve_stock_query(h_raw.strip())
+                st.switch_page("pages/1_📊_股票分析.py")
 
-if (home_search_btn or home_stock_q) and home_stock_q.strip():
-    st.session_state['target_stock'] = home_stock_q.strip()
-    st.switch_page("pages/1_📊_股票分析.py")
+if home_sel:
+    target_c = h_l2c.get(home_sel)
+    if target_c:
+        st.session_state['target_stock'] = target_c
+        st.switch_page("pages/1_📊_股票分析.py")
 
 st.markdown(
     '<a href="/?nav=radar" target="_self" style="text-decoration:none !important;">'

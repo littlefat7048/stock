@@ -51,7 +51,7 @@ from utils.helpers import (
     resolve_stock_query, get_tw_stock_chinese_info, get_peer_stocks,
     format_price, color_for_change, load_concept_data,
     get_concept_tags_for_stock, get_concept_details_for_stock,
-    load_watchlist, save_watchlist
+    load_watchlist, save_watchlist, get_searchable_stock_options
 )
 from utils.charts import (
     create_candlestick_chart, create_macd_chart, create_kd_chart,
@@ -68,27 +68,72 @@ st.set_page_config(page_title='台股個股深度分析', page_icon='📊', layo
 st.markdown(get_common_css(), unsafe_allow_html=True)
 st.markdown(get_top_nav_html('stock'), unsafe_allow_html=True)
 
-# ── 股票代號或中文名稱輸入區 ──────────────────────────────
-if 'target_stock' in st.session_state and st.session_state['target_stock']:
-    default_query = str(st.session_state['target_stock']).strip()
-    st.session_state['target_stock'] = ''
-else:
-    default_query = st.query_params.get('stock', '2330')
+# ── 股票代號或中文名稱即時搜尋區 ──────────────────────────
+options_list, code_to_label, label_to_code = get_searchable_stock_options()
 
-st.markdown("<div style='font-size:18px; font-weight:bold; color:#00D4AA; margin-bottom:2px;'>🔍 輸入台股代號或中文股名查詢：</div>", unsafe_allow_html=True)
-col_input, col_btn = st.columns([3.6, 1.4])
-with col_input:
-    raw_input = st.text_input(
-        "🔍 輸入台股代號或中文股名",
-        value=default_query,
-        placeholder="點此輸入：例如 2221、大甲、5484、慧友、2330、台積電",
+# 解析目前目標股票代號
+if 'target_stock' in st.session_state and st.session_state['target_stock']:
+    raw_target = str(st.session_state['target_stock']).strip()
+    st.session_state['target_stock'] = ''
+    current_code = resolve_stock_query(raw_target)
+else:
+    param_stock = st.query_params.get('stock', '2330')
+    current_code = resolve_stock_query(param_stock)
+
+# 確保當前股票存在於選單中（若為特殊代號則動態補入）
+current_label = code_to_label.get(current_code)
+if not current_label:
+    cinfo = get_tw_stock_chinese_info(current_code)
+    m_name = cinfo.get('name', current_code).replace('*', '').strip()
+    m_mkt = cinfo.get('market', '台股')
+    current_label = f"{current_code} {m_name} ｜ {m_mkt}"
+    options_list = [current_label] + options_list
+    code_to_label[current_code] = current_label
+    label_to_code[current_label] = current_code
+
+default_idx = options_list.index(current_label) if current_label in options_list else 0
+
+st.markdown(
+    "<div style='font-size:18px; font-weight:bold; color:#00D4AA; margin-bottom:4px;'>"
+    "🔍 台股即時智慧搜尋（輸入中文或數字即時聯想篩選，點選立即切換）："
+    "</div>",
+    unsafe_allow_html=True
+)
+col_search, col_manual = st.columns([3.8, 1.2])
+with col_search:
+    selected_label = st.selectbox(
+        "🔍 輸入台股代號或中文股名查詢（支援即時搜尋）",
+        options=options_list,
+        index=default_idx,
+        key=f"stock_search_{current_code}",
+        help="點擊後直接打字（如輸入「國」、「23」、「台積電」），下拉清單即時聯想篩選，點選任一檔股票立即切換分析！",
         label_visibility="collapsed"
     )
-with col_btn:
-    search_btn = st.button("🚀 立即分析", use_container_width=True)
+with col_manual:
+    manual_pop = st.popover("✏️ 手動輸入", use_container_width=True)
+    with manual_pop:
+        st.caption("若欲查詢未收錄之冷門權證或特殊代號：")
+        manual_code = st.text_input("輸入完整代號或股名：", key="manual_stock_input", placeholder="例如 2327 或 國巨")
+        if st.button("🚀 立即查詢", key="manual_search_btn", use_container_width=True):
+            if manual_code.strip():
+                st.session_state['target_stock'] = manual_code.strip()
+                st.rerun()
+
+# 當使用者在即時搜尋選單切換股票時
+new_selected_code = label_to_code.get(selected_label, current_code)
+if new_selected_code != current_code:
+    st.query_params['stock'] = new_selected_code
+    st.rerun()
+
+stock_code = current_code
+st.query_params['stock'] = stock_code
 
 # 熱門速選晶片（手機左右滑動，點擊直達）
-quick_samples = [('2330', '台積電'), ('2221', '大甲'), ('5484', '慧友'), ('6515', '穎崴'), ('2317', '鴻海'), ('2454', '聯發科'), ('2382', '廣達')]
+quick_samples = [
+    ('2330', '台積電'), ('2327', '國巨'), ('2882', '國泰金'),
+    ('2317', '鴻海'), ('2454', '聯發科'), ('2382', '廣達'),
+    ('5484', '慧友'), ('2221', '大甲'), ('6515', '穎崴')
+]
 sample_chips = "".join([
     f'<a href="/?stock={qcode}" target="_self" class="stock-chip-link">'
     f'<span class="chip-code">{qcode}</span>{qname}</a>'
@@ -102,11 +147,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-if search_btn or raw_input:
-    # 將中文名稱或代號統一轉為標準台股代號
-    stock_code = resolve_stock_query(raw_input)
-    st.query_params['stock'] = stock_code
-
+if stock_code:
     with st.spinner(f"正在載入台股 {stock_code} 完整基本面、公司業務、技術面、法人力度、當沖率與財報資料..."):
         info       = get_stock_info(stock_code)
         df_price   = get_price_history(stock_code, period='1y')

@@ -4,6 +4,8 @@
 """
 import json
 import os
+import re
+import streamlit as st
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
 WATCHLIST_FILE = os.path.join(DATA_DIR, 'watchlist.json')
@@ -32,10 +34,18 @@ def resolve_stock_query(query: str) -> str:
     """
     將使用者輸入的「股票代號」或「中文股票名稱」轉換為標準代號
     例如：輸入 '慧友' -> 回傳 '5484'；輸入 '2330' -> 回傳 '2330'
+    若傳入完整標籤如 '2327 國巨 ｜ 上市...'，自動解析出 '2327'
     """
     q = str(query).strip()
     if not q:
         return '2330'
+
+    # 若格式包含空格（如 "2327 國巨 ｜ 上市" 或 "2330 台積電"），直接提取開頭的股票代號
+    parts = q.split()
+    if parts:
+        first = parts[0]
+        if first.isdigit() or (len(first) >= 4 and first[:4].isdigit()):
+            return first
 
     db = _load_tw_stocks_dict()
     stocks = db.get('stocks', {})
@@ -63,6 +73,70 @@ def resolve_stock_query(query: str) -> str:
                     return s.get('code')
 
     return q
+
+
+@st.cache_data
+def get_searchable_stock_options():
+    """
+    提供快速即時搜尋使用的全台股清單：
+    - 精選台股上市櫃普通股與熱門原型 ETF（排除冷門債券型ETF與權證，確保搜尋精準度）
+    - 依「權值熱門龍頭股」與「標準 4 碼個股」排序，讓輸入「國」即跳出國巨、國泰金；輸入「23」即跳出台積電、鴻海、國巨
+    - 格式：'2327 國巨 ｜ 上市 · 電子工業'
+    - 回傳：(options_list, code_to_label, label_to_code)
+    """
+    db = _load_tw_stocks_dict()
+    stocks = db.get('stocks', {})
+
+    POPULAR_STOCKS = [
+        '2330', '2317', '2454', '2382', '2308', '2881', '2882', '2327', '2603',
+        '3008', '2303', '2412', '2886', '2891', '2357', '3711', '2884', '2892',
+        '1301', '1303', '2002', '3231', '6505', '5484', '2221', '6515',
+        '0050', '0056', '00878', '00919', '00929', '00940'
+    ]
+
+    clean_stocks = []
+    for code, info in stocks.items():
+        # 排除債券型 ETF (結尾為 B)、權證 (6 碼以上或特定字母)
+        if code.endswith('B') or code.endswith('T') or code.endswith('P') or code.endswith('F'):
+            continue
+        if len(code) >= 6:
+            continue
+        name = info.get('name', '').replace('*', '').strip()
+        market = info.get('market', '').strip()
+        inds = info.get('industries', [])
+        ind = inds[0].strip() if inds and inds[0] else ''
+        clean_stocks.append({
+            'code': code,
+            'name': name,
+            'market': market,
+            'ind': ind
+        })
+
+    def sort_key(s):
+        c = s['code']
+        if c in POPULAR_STOCKS:
+            return (0, POPULAR_STOCKS.index(c))
+        if re.match(r'^\d{4}$', c):
+            return (1, int(c))
+        if re.match(r'^00\d{3}$', c):
+            return (2, int(c))
+        return (3, c)
+
+    clean_stocks.sort(key=sort_key)
+
+    options_list = []
+    code_to_label = {}
+    label_to_code = {}
+
+    for s in clean_stocks:
+        code = s['code']
+        meta = f"{s['market']} · {s['ind']}" if s['ind'] else s['market']
+        label = f"{code} {s['name']} ｜ {meta}"
+        options_list.append(label)
+        code_to_label[code] = label
+        label_to_code[label] = code
+
+    return options_list, code_to_label, label_to_code
 
 
 def get_tw_stock_chinese_info(code: str) -> dict:

@@ -101,19 +101,101 @@ def _apply_dark_layout(fig, bottom_margin=100, top_margin=54, legend_y=-0.24, is
     return fig
 
 
-def create_candlestick_chart(df, selected_mas=['MA5', 'MA20', 'MA60']):
+def create_candlestick_chart(df, selected_mas=['MA5', 'MA20', 'MA60'], day_trading_df=None):
+    """
+    專業 K 線與成交量全連動圖表（還原專業看盤軟體十字查價線功能）：
+    1. 上下全連動：點擊或懸停 K 線或成交量任一處，即刻同步顯示當日完整四價、漲跌、振幅、成交張數、5MA/20MA均量、當沖數據與各期均線數值。
+    2. 十字查價線 (Crosshair)：金色虛線貫穿上下雙圖表，精準對齊同一交易日。
+    3. 成交量附帶 5日均量線 (黃色) 與 20日均量線 (青色)。
+    4. 支援當沖率 (Day Trading Ratio) 與當沖張數整合顯示。
+    5. 自動剔除非交易日，K 線緊密相連。
+    """
     fig = make_subplots(
         rows=2, cols=1, shared_xaxes=True,
-        vertical_spacing=0.10,
-        subplot_titles=('股價 K 線與均線走勢（紅漲綠跌）', '成交量（張）'),
-        row_width=[0.26, 0.74]
+        vertical_spacing=0.08,
+        subplot_titles=('📈 股價 K 線與均線走勢（紅漲綠跌・十字查價上下連動）', '📊 成交量（張）與 5MA / 20MA 均量走勢'),
+        row_width=[0.28, 0.72]
     )
+
+    # 成交量轉換為「張」（每張 = 1,000 股）
+    vol_lots = [round(float(v) / 1000.0, 1) for v in df['Volume']]
+    s_vol = pd.Series(vol_lots, index=df.index)
+    vol_ma5 = s_vol.rolling(5).mean()
+    vol_ma20 = s_vol.rolling(20).mean()
+
+    # 建立當沖數據快速索引
+    dt_map = {}
+    if day_trading_df is not None and not day_trading_df.empty:
+        for idx, r in day_trading_df.iterrows():
+            d_key = r.get('DateStr') or (idx.strftime('%Y-%m-%d') if hasattr(idx, 'strftime') else str(idx)[:10])
+            dt_map[d_key] = (float(r.get('DayTradingLots', 0)), float(r.get('DayTradingRatio', 0.0)))
+
+    # 1. 產生 K 線圖「上下全連動」懸浮卡片（涵蓋：四價、漲跌幅、振幅、成交張數、均量、均線、當沖）
+    k_tooltips = []
+    prev_close = None
+    for idx_val, row in df.iterrows():
+        o = float(row.get('Open', 0))
+        h = float(row.get('High', 0))
+        l = float(row.get('Low', 0))
+        c = float(row.get('Close', 0))
+        v = s_vol.loc[idx_val]
+        v5 = vol_ma5.loc[idx_val]
+        v20 = vol_ma20.loc[idx_val]
+
+        base_p = prev_close if prev_close else o
+        chg = c - base_p
+        pct = (chg / base_p * 100) if base_p else 0.0
+        c_color = UP_COLOR if chg >= 0 else DOWN_COLOR
+        amp = ((h - l) / base_p * 100) if base_p else 0.0
+
+        d_str = idx_val.strftime('%Y/%m/%d') if hasattr(idx_val, 'strftime') else str(idx_val)[:10]
+        d_key = idx_val.strftime('%Y-%m-%d') if hasattr(idx_val, 'strftime') else str(idx_val)[:10]
+
+        v5_str = f"{v5:,.0f} 張" if pd.notnull(v5) else "-"
+        v20_str = f"{v20:,.0f} 張" if pd.notnull(v20) else "-"
+
+        # 當沖資訊
+        dt_line = ""
+        if d_key in dt_map:
+            dt_l, dt_r = dt_map[d_key]
+            dt_color = '#FF5252' if dt_r >= 60 else '#FFA726' if dt_r >= 40 else '#38BDF8'
+            dt_line = f"• 當沖量: <b>{dt_l:,.0f} 張</b> ｜ 當沖率: <b style='color:{dt_color};'>{dt_r:.1f}%</b><br>"
+
+        # 均線資訊
+        ma_parts = []
+        ma_color_map = {'MA5': '#FFD700', 'MA10': '#FF80AB', 'MA20': '#00E5FF', 'MA60': '#FF9100', 'MA120': '#B388FF', 'MA240': '#69F0AE'}
+        for ma in selected_mas:
+            if ma in row and pd.notnull(row[ma]):
+                m_color = ma_color_map.get(ma, '#FAFAFA')
+                ma_parts.append(f"{ma}: <b style='color:{m_color};'>{row[ma]:,.2f}</b>")
+        ma_line = " ｜ ".join(ma_parts) if ma_parts else "無"
+
+        card = (
+            f"📅 <b>{d_str}</b><br>"
+            f"━━━━━━━━━━━━━━━━━━<br>"
+            f"📈 <b>【股價四價與漲跌】</b><br>"
+            f"• 開: <b>{o:,.2f}</b> ｜ 高: <b style='color:{UP_COLOR};'>{h:,.2f}</b><br>"
+            f"• 低: <b style='color:{DOWN_COLOR};'>{l:,.2f}</b> ｜ 收: <b style='color:{c_color};'>{c:,.2f}</b><br>"
+            f"• 漲跌: <b style='color:{c_color};'>{chg:+,.2f} ({pct:+.2f}%)</b> ｜ 振幅: <b>{amp:.2f}%</b><br>"
+            f"━━━━━━━━━━━━━━━━━━<br>"
+            f"📊 <b>【成交量能（上下連動）】</b><br>"
+            f"• 成交量: <b style='color:#FFD700;'>{v:,.0f} 張</b><br>"
+            f"• 5日均量: <b>{v5_str}</b> ｜ 20日均量: <b>{v20_str}</b><br>"
+            f"{dt_line}"
+            f"━━━━━━━━━━━━━━━━━━<br>"
+            f"📏 <b>【均線位置】</b><br>"
+            f"{ma_line}"
+        )
+        k_tooltips.append(card)
+        prev_close = c
 
     fig.add_trace(go.Candlestick(
         x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'],
         increasing_line_color=UP_COLOR, increasing_fillcolor=UP_COLOR,
         decreasing_line_color=DOWN_COLOR, decreasing_fillcolor=DOWN_COLOR,
-        name='K線'
+        name='K線',
+        text=k_tooltips,
+        hoverinfo='text'
     ), row=1, col=1)
 
     ma_colors = {
@@ -130,21 +212,119 @@ def create_candlestick_chart(df, selected_mas=['MA5', 'MA20', 'MA60']):
                 x=df.index, y=df[ma],
                 line=dict(color=ma_colors.get(ma, '#FFFFFF'), width=1.8),
                 name=ma,
-                hovertemplate=f"%{{x|%m/%d}}｜{ma}: <b>%{{y:.2f}}</b><extra></extra>"
+                hoverinfo='skip'
             ), row=1, col=1)
 
-    # 成交量轉換為「張」（每張 = 1,000 股），單位直覺且符合台股慣例
-    vol_lots = [round(float(v) / 1000.0, 1) for v in df['Volume']]
+    # 2. 產生成交量「上下全連動」懸浮卡片（點成交量也同樣完整呈現股價與量能）
+    vol_tooltips = []
+    prev_close = None
+    for idx_val, row in df.iterrows():
+        o = float(row.get('Open', 0))
+        h = float(row.get('High', 0))
+        l = float(row.get('Low', 0))
+        c = float(row.get('Close', 0))
+        v = s_vol.loc[idx_val]
+        v5 = vol_ma5.loc[idx_val]
+        v20 = vol_ma20.loc[idx_val]
+
+        base_p = prev_close if prev_close else o
+        chg = c - base_p
+        pct = (chg / base_p * 100) if base_p else 0.0
+        c_color = UP_COLOR if chg >= 0 else DOWN_COLOR
+        amp = ((h - l) / base_p * 100) if base_p else 0.0
+
+        d_str = idx_val.strftime('%Y/%m/%d') if hasattr(idx_val, 'strftime') else str(idx_val)[:10]
+        d_key = idx_val.strftime('%Y-%m-%d') if hasattr(idx_val, 'strftime') else str(idx_val)[:10]
+
+        v5_str = f"{v5:,.0f} 張" if pd.notnull(v5) else "-"
+        v20_str = f"{v20:,.0f} 張" if pd.notnull(v20) else "-"
+
+        dt_line = ""
+        if d_key in dt_map:
+            dt_l, dt_r = dt_map[d_key]
+            dt_color = '#FF5252' if dt_r >= 60 else '#FFA726' if dt_r >= 40 else '#38BDF8'
+            dt_line = f"• 當沖量: <b>{dt_l:,.0f} 張</b> ｜ 當沖率: <b style='color:{dt_color};'>{dt_r:.1f}%</b><br>"
+
+        ma_parts = []
+        ma_color_map = {'MA5': '#FFD700', 'MA10': '#FF80AB', 'MA20': '#00E5FF', 'MA60': '#FF9100', 'MA120': '#B388FF', 'MA240': '#69F0AE'}
+        for ma in selected_mas:
+            if ma in row and pd.notnull(row[ma]):
+                m_color = ma_color_map.get(ma, '#FAFAFA')
+                ma_parts.append(f"{ma}: <b style='color:{m_color};'>{row[ma]:,.2f}</b>")
+        ma_line = " ｜ ".join(ma_parts) if ma_parts else "無"
+
+        card = (
+            f"📅 <b>{d_str}</b><br>"
+            f"━━━━━━━━━━━━━━━━━━<br>"
+            f"📊 <b>【成交量能明細】</b><br>"
+            f"• 成交量: <b style='color:#FFD700;'>{v:,.0f} 張</b><br>"
+            f"• 5日均量: <b>{v5_str}</b> ｜ 20日均量: <b>{v20_str}</b><br>"
+            f"{dt_line}"
+            f"━━━━━━━━━━━━━━━━━━<br>"
+            f"📈 <b>【對應股價（上下連動）】</b><br>"
+            f"• 收盤價: <b style='color:{c_color};'>{c:,.2f} ({chg:+,.2f} / {pct:+.2f}%)</b><br>"
+            f"• 開: {o:,.2f} ｜ 高: {h:,.2f} ｜ 低: {l:,.2f} ｜ 振幅: {amp:.2f}%<br>"
+            f"━━━━━━━━━━━━━━━━━━<br>"
+            f"📏 <b>【均線位置】</b><br>"
+            f"{ma_line}"
+        )
+        vol_tooltips.append(card)
+        prev_close = c
+
     volume_colors = [UP_COLOR if row['Close'] >= row['Open'] else DOWN_COLOR for _, row in df.iterrows()]
     fig.add_trace(go.Bar(
         x=df.index, y=vol_lots,
         marker_color=volume_colors,
         name='成交量(張)',
-        hovertemplate="%{x|%m/%d}｜量: <b>%{y:,.0f} 張</b><extra></extra>"
+        text=vol_tooltips,
+        hoverinfo='text'
     ), row=2, col=1)
 
-    fig.update_layout(xaxis_rangeslider_visible=False, height=620)
-    return _apply_dark_layout(fig, bottom_margin=96, top_margin=44, legend_y=-0.16, is_date_x=True, df_index=df.index)
+    # 5日與20日均量線
+    fig.add_trace(go.Scatter(
+        x=df.index, y=vol_ma5,
+        line=dict(color='#FFD700', width=1.6),
+        name='5日均量',
+        hoverinfo='skip'
+    ), row=2, col=1)
+
+    fig.add_trace(go.Scatter(
+        x=df.index, y=vol_ma20,
+        line=dict(color='#00E5FF', width=1.6),
+        name='20日均量',
+        hoverinfo='skip'
+    ), row=2, col=1)
+
+    fig.update_layout(xaxis_rangeslider_visible=False, height=660)
+    fig = _apply_dark_layout(fig, bottom_margin=96, top_margin=44, legend_y=-0.16, is_date_x=True, df_index=df.index)
+
+    # 覆蓋深色主題的 hoverlabel 與 十字查價線 (Spikelines)
+    fig.update_layout(
+        hovermode='x',
+        hoverlabel=dict(
+            bgcolor='rgba(15, 23, 42, 0.96)',
+            bordercolor='#FFD700',
+            font=dict(size=14, color='#F8FAFC'),
+            align='left'
+        )
+    )
+    fig.update_xaxes(
+        showspikes=True,
+        spikemode='across',
+        spikesnap='cursor',
+        spikethickness=1.4,
+        spikecolor='#FFD700',
+        spikedash='dash'
+    )
+    fig.update_yaxes(
+        showspikes=True,
+        spikemode='across',
+        spikesnap='cursor',
+        spikethickness=1.0,
+        spikecolor='rgba(255, 215, 0, 0.45)',
+        spikedash='dot'
+    )
+    return fig
 
 
 def create_macd_chart(df):

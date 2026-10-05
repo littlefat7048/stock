@@ -531,8 +531,9 @@ if stock_code:
             else:
                 k_bars = 140
 
+            dt_df = day_trading.get('df') if (day_trading and day_trading.get('available')) else None
             st.plotly_chart(
-                create_candlestick_chart(df_price.tail(k_bars), ma_options),
+                create_candlestick_chart(df_price.tail(k_bars), ma_options, day_trading_df=dt_df),
                 use_container_width=True,
                 config=PLOTLY_CFG
             )

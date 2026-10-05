@@ -475,6 +475,13 @@ with tab_study:
 
     # 左側：走勢圖與分點痕跡大圖（優先渲染）
     with col_chart:
+        # 計算分點排名
+        cur_rank = 1
+        if cur_buy_info:
+            cur_rank = cur_buy_info.get('rank', 1)
+        elif cur_sell_info:
+            cur_rank = cur_sell_info.get('rank', 1)
+
         # 計算足跡（多重向下相容防禦，杜絕 Streamlit Cloud 快取 TypeError）
         try:
             footprint = match_broker_footprint(
@@ -483,7 +490,8 @@ with tab_study:
                 sell_price=active_sell_p,
                 buy_lots=active_buy_vol,
                 sell_lots=active_sell_vol,
-                broker_name=active_broker
+                broker_name=active_broker,
+                rank=cur_rank
             )
         except TypeError:
             try:
@@ -523,6 +531,72 @@ with tab_study:
                 "</div>",
                 unsafe_allow_html=True
             )
+
+        # 🎯 主力操作風格與盤中手法動態解析卡（白話解讀，一眼看懂）
+        net_lots = active_buy_vol - active_sell_vol
+        tot_lots = active_buy_vol + active_sell_vol
+        net_ratio = abs(net_lots) / max(1, tot_lots)
+        is_day_trader_name = any(k in active_broker for k in ['凱基台北', '元大總公司', '虎尾', '富邦-建國', '光和', '元大-土城', '統一-台中', '城中'])
+        is_two_way = (is_day_trader_name or (active_buy_vol >= 300 and active_sell_vol >= 300 and net_ratio < 0.38))
+        is_buyer = not is_two_way and (net_lots > 0)
+        is_seller = not is_two_way and (net_lots < 0)
+
+        if is_two_way:
+            mode_badge = "⚡ 經典隔日沖 / 當沖大戶 🔴🟢"
+            badge_bg = "rgba(245, 158, 11, 0.18)"
+            badge_border = "#F59E0B"
+            badge_color = "#F59E0B"
+        elif is_buyer:
+            mode_badge = "🔴 波段吃貨 / 主力點火作多"
+            badge_bg = "rgba(239, 68, 68, 0.18)"
+            badge_border = "#EF4444"
+            badge_color = "#EF4444"
+        else:
+            mode_badge = "🟢 波段調節 / 外資逢高倒貨"
+            badge_bg = "rgba(16, 185, 129, 0.18)"
+            badge_border = "#10B981"
+            badge_color = "#10B981"
+
+        footprint_items_html = ""
+        if footprint:
+            for sh in footprint:
+                sh_m = "🔴▲" if sh['is_buy'] else "🟢▼"
+                sh_c = "#EF4444" if sh['is_buy'] else "#10B981"
+                sh_s = sh['start'].strftime('%H:%M') if hasattr(sh['start'], 'strftime') else str(sh['start'])
+                sh_e = sh['end'].strftime('%H:%M') if hasattr(sh['end'], 'strftime') else str(sh['end'])
+                sh_p = sh.get('shelf_price', 0.0)
+                sh_d = sh.get('desc', '分時操作')
+                footprint_items_html += (
+                    f"<div style='display:inline-flex; align-items:center; gap:6px; background:#1C202C; border:1px solid #2D3342; border-radius:4px; padding:3px 8px; margin:2px 4px; font-size:12.5px;'>"
+                    f"<span style='color:{sh_c}; font-weight:bold;'>{sh_m}</span>"
+                    f"<span style='color:#E2E8F0;'>{sh_s}~{sh_e}</span>"
+                    f"<span style='color:#F59E0B; font-weight:bold;'>{sh_p:,.2f}元</span>"
+                    f"<span style='color:#94A3B8;'>({sh_d})</span>"
+                    f"</div>"
+                )
+
+        st.markdown(f"""
+        <div style='background:#13161F; border:1px solid #232733; border-radius:6px; padding:10px 14px; margin-bottom:10px;'>
+            <div style='display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;'>
+                <div style='display:flex; align-items:center; gap:8px;'>
+                    <span style='font-size:15px; font-weight:bold; color:#FFFFFF;'>🎯 主力操作風格解析：</span>
+                    <span style='background:{badge_bg}; border:1px solid {badge_border}; color:{badge_color}; font-size:12.5px; font-weight:bold; padding:2px 8px; border-radius:4px;'>{mode_badge}</span>
+                </div>
+                <div style='font-size:13px; color:#94A3B8;'>
+                    買進 <b style='color:#EF4444;'>{active_buy_vol:,}</b> 張 ｜ 賣出 <b style='color:#10B981;'>{active_sell_vol:,}</b> 張 ｜ 淨買賣 <b style='color:{badge_color};'>{net_lots:+d}</b> 張
+                </div>
+            </div>
+            <div style='margin-top:8px; display:flex; flex-wrap:wrap; align-items:center;'>
+                <span style='color:#94A3B8; font-size:12.5px; margin-right:4px;'>盤中推估足跡：</span>
+                {footprint_items_html if footprint_items_html else "<span style='color:#64748B; font-size:12.5px;'>無明顯集中階梯</span>"}
+            </div>
+            <div style='margin-top:6px; padding-top:6px; border-top:1px dashed #212530; display:flex; flex-wrap:wrap; gap:16px; font-size:12px; color:#64748B;'>
+                <span>📌 <b style='color:#EF4444;'>連續紅線</b>：股票當日每分鐘真實成交價（市場基準，不因換分點改變）</span>
+                <span>📌 <b style='color:#CBD5E1;'>白色虛線</b>：全市場成交均價 (VWAP)</span>
+                <span>📌 <b style='color:#F59E0B;'>階梯色帶與箭頭</b>：【{active_broker}】的進出時間與推估成本</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
         # 繪製 Plotly 圖表（防禦性安全調用）
         try:
@@ -593,8 +667,6 @@ with tab_study:
                     b_mark = "🔴" if b_item['buy_lots'] >= b_item['sell_lots'] else "🟢"
                     if st.button(f"{b_mark} {b_item['name']}", key=f"chip_b_{b_item['name']}", type=btn_type, use_container_width=True):
                         st.session_state['active_selected_broker'] = b_item['name']
-                        if b_item['name'] in name_to_lbl:
-                            st.session_state['broker_selectbox_widget'] = name_to_lbl[b_item['name']]
                         st.rerun()
 
         # 🎯 分點下拉選擇選單（完整條列所有分點名稱與買賣量）
@@ -604,8 +676,7 @@ with tab_study:
         picked_broker_lbl = st.selectbox(
             "🎯 下拉選擇要追蹤的分點（免打字）：",
             options=broker_options,
-            index=cur_opt_idx,
-            key="broker_selectbox_widget"
+            index=cur_opt_idx
         )
         picked_broker_name = lbl_to_name.get(picked_broker_lbl, active_broker)
         if picked_broker_name != active_broker:
@@ -624,9 +695,20 @@ with tab_study:
         filtered_buyers = [b for b in buyers if kw_filter in b['name']] if kw_filter else buyers
         filtered_sellers = [s for s in sellers if kw_filter in s['name']] if kw_filter else sellers
 
+        # 買方分點速選按鈕（點擊即時切換）
+        if filtered_buyers:
+            top_b_chips = st.columns(min(3, len(filtered_buyers)))
+            for bi, b_item in enumerate(filtered_buyers[:3]):
+                with top_b_chips[bi]:
+                    is_cur = (b_item['name'] == active_broker)
+                    b_type = "primary" if is_cur else "secondary"
+                    if st.button(f"🔴 {b_item['name']}", key=f"btn_buy_{b_item['name']}", type=b_type, use_container_width=True):
+                        st.session_state['active_selected_broker'] = b_item['name']
+                        st.rerun()
+
         # 卡片 1：買方分點（完全還原圖一，高亮目前選定分點）
         st.markdown(f"""
-        <div class='broker-card' style='margin-top:10px;'>
+        <div class='broker-card' style='margin-top:6px;'>
             <div class='broker-card-header'>
                 <div style='display:flex; align-items:center;'>
                     <span class='broker-badge-buy'>買</span>
@@ -674,9 +756,20 @@ with tab_study:
         </div>
         """, unsafe_allow_html=True)
 
+        # 賣方分點速選按鈕（點擊即時切換）
+        if filtered_sellers:
+            top_s_chips = st.columns(min(3, len(filtered_sellers)))
+            for si, s_item in enumerate(filtered_sellers[:3]):
+                with top_s_chips[si]:
+                    is_cur = (s_item['name'] == active_broker)
+                    s_type = "primary" if is_cur else "secondary"
+                    if st.button(f"🟢 {s_item['name']}", key=f"btn_sell_{s_item['name']}", type=s_type, use_container_width=True):
+                        st.session_state['active_selected_broker'] = s_item['name']
+                        st.rerun()
+
         # 卡片 2：賣方分點（完全還原圖一，高亮目前選定分點）
         st.markdown(f"""
-        <div class='broker-card'>
+        <div class='broker-card' style='margin-top:6px;'>
             <div class='broker-card-header'>
                 <div style='display:flex; align-items:center;'>
                     <span class='broker-badge-sell'>賣</span>

@@ -585,29 +585,33 @@ with tab_study:
                     f"</div>"
                 )
 
-        st.markdown(f"""
-        <div style='background:#13161F; border:1px solid #232733; border-radius:6px; padding:10px 14px; margin-bottom:10px;'>
-            <div style='display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;'>
-                <div style='display:flex; align-items:center; gap:8px;'>
-                    <span style='font-size:15px; font-weight:bold; color:#FFFFFF;'>🎯 主力操作風格解析：</span>
-                    <span style='background:{badge_bg}; border:1px solid {badge_border}; color:{badge_color}; font-size:12.5px; font-weight:bold; padding:2px 8px; border-radius:4px;'>{mode_badge}</span>
-                </div>
-                <div style='font-size:13px; color:#94A3B8;'>
-                    買進 <b style='color:#EF4444;'>{active_buy_vol:,}</b> 張 ｜ 賣出 <b style='color:#10B981;'>{active_sell_vol:,}</b> 張 ｜ 淨買賣 <b style='color:{badge_color};'>{net_lots:+d}</b> 張
-                </div>
-            </div>
-            {broker_desc_note}
-            <div style='margin-top:8px; display:flex; flex-wrap:wrap; align-items:center;'>
-                <span style='color:#94A3B8; font-size:12.5px; margin-right:4px;'>盤中推估足跡：</span>
-                {footprint_items_html if footprint_items_html else "<span style='color:#64748B; font-size:12.5px;'>無明顯集中階梯</span>"}
-            </div>
-            <div style='margin-top:6px; padding-top:6px; border-top:1px dashed #212530; display:flex; flex-wrap:wrap; gap:16px; font-size:12px; color:#64748B;'>
-                <span>📌 <b style='color:#EF4444;'>連續紅線</b>：股票當日每分鐘真實成交價（市場基準，不因換分點改變）</span>
-                <span>📌 <b style='color:#CBD5E1;'>白色虛線</b>：全市場成交均價 (VWAP)</span>
-                <span>📌 <b style='color:#F59E0B;'>階梯色帶與箭頭</b>：【{active_broker}】的進出時間與推估成本</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        desc_line = f"<div style='margin-top:6px; font-size:13px; color:#FBBF24; background:rgba(245,158,11,0.08); padding:4px 8px; border-radius:4px;'>💡 <b>主力操作特徵：</b>{on_info['desc']}</div>" if (on_info['is_overnight'] and on_info['desc']) else ""
+        fp_content = footprint_items_html if footprint_items_html else "<span style='color:#64748B; font-size:12.5px;'>無明顯集中階梯</span>"
+
+        card_html = (
+            f"<div style='background:#13161F; border:1px solid #232733; border-radius:6px; padding:10px 14px; margin-bottom:10px;'>"
+            f"<div style='display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;'>"
+            f"<div style='display:flex; align-items:center; gap:8px;'>"
+            f"<span style='font-size:15px; font-weight:bold; color:#FFFFFF;'>🎯 主力操作風格解析：</span>"
+            f"<span style='background:{badge_bg}; border:1px solid {badge_border}; color:{badge_color}; font-size:12.5px; font-weight:bold; padding:2px 8px; border-radius:4px;'>{mode_badge}</span>"
+            f"</div>"
+            f"<div style='font-size:13px; color:#94A3B8;'>"
+            f"買進 <b style='color:#EF4444;'>{active_buy_vol:,}</b> 張 ｜ 賣出 <b style='color:#10B981;'>{active_sell_vol:,}</b> 張 ｜ 淨買賣 <b style='color:{badge_color};'>{net_lots:+d}</b> 張"
+            f"</div>"
+            f"</div>"
+            f"{desc_line}"
+            f"<div style='margin-top:8px; display:flex; flex-wrap:wrap; align-items:center; gap:4px;'>"
+            f"<span style='color:#94A3B8; font-size:12.5px; margin-right:4px;'>盤中推估足跡：</span>"
+            f"{fp_content}"
+            f"</div>"
+            f"<div style='margin-top:6px; padding-top:6px; border-top:1px dashed #212530; display:flex; flex-wrap:wrap; gap:16px; font-size:12px; color:#64748B;'>"
+            f"<span>📌 <b style='color:#EF4444;'>連續紅線</b>：股票當日每分鐘真實成交價（市場基準，不因換分點改變）</span>"
+            f"<span>📌 <b style='color:#CBD5E1;'>白色虛線</b>：全市場成交均價 (VWAP)</span>"
+            f"<span>📌 <b style='color:#F59E0B;'>階梯色帶與箭頭</b>：【{active_broker}】的進出時間與推估成本</span>"
+            f"</div>"
+            f"</div>"
+        )
+        st.markdown(card_html, unsafe_allow_html=True)
 
         # 繪製 Plotly 圖表（防禦性安全調用）
         try:
@@ -728,29 +732,6 @@ with tab_study:
                         st.rerun()
 
         # 卡片 1：買方分點（完全還原圖一，高亮目前選定分點）
-        st.markdown(f"""
-        <div class='broker-card' style='margin-top:6px;'>
-            <div class='broker-card-header'>
-                <div style='display:flex; align-items:center;'>
-                    <span class='broker-badge-buy'>買</span>
-                    <span style='font-size:14.5px; font-weight:bold; color:#FFFFFF;'>買方分點</span>
-                </div>
-                <div style='font-size:13px;'>
-                    <b style='color:#EF4444;'>{tot_buy_lots:,} 張</b>
-                    <span style='color:#64748B;'> · {source_tag}</span>
-                </div>
-            </div>
-            <table class='broker-table'>
-                <thead>
-                    <tr>
-                        <th style='text-align:left; width:50%;'>分點名稱</th>
-                        <th style='text-align:right; width:25%;'>買進張數 ↓</th>
-                        <th style='text-align:right; width:25%;'>買均價</th>
-                    </tr>
-                </thead>
-                <tbody>
-        """, unsafe_allow_html=True)
-
         b_rows_html = ""
         for idx, b in enumerate(filtered_buyers[:15]):
             is_active = (b['name'] == active_broker)
@@ -768,16 +749,37 @@ with tab_study:
         if not b_rows_html:
             b_rows_html = "<tr><td colspan='3' style='text-align:center; color:#64748B; padding:12px;'>無符合分點</td></tr>"
 
-        st.markdown(f"""
-                {b_rows_html}
-                </tbody>
-            </table>
-            <div class='broker-card-footer'>
-                <span>{buyer_count} 家 · 匯入量 / 當日量 {cov_pct}%</span>
-                <span>顯示 {len(filtered_buyers)} 家</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        b_table_html = (
+            f"<div class='broker-card' style='margin-top:6px;'>"
+            f"<div class='broker-card-header'>"
+            f"<div style='display:flex; align-items:center;'>"
+            f"<span class='broker-badge-buy'>買</span>"
+            f"<span style='font-size:14.5px; font-weight:bold; color:#FFFFFF;'>買方分點</span>"
+            f"</div>"
+            f"<div style='font-size:13px;'>"
+            f"<b style='color:#EF4444;'>{tot_buy_lots:,} 張</b>"
+            f"<span style='color:#64748B;'> · {source_tag}</span>"
+            f"</div>"
+            f"</div>"
+            f"<table class='broker-table'>"
+            f"<thead>"
+            f"<tr>"
+            f"<th style='text-align:left; width:50%;'>分點名稱</th>"
+            f"<th style='text-align:right; width:25%;'>買進張數 ↓</th>"
+            f"<th style='text-align:right; width:25%;'>買均價</th>"
+            f"</tr>"
+            f"</thead>"
+            f"<tbody>"
+            f"{b_rows_html}"
+            f"</tbody>"
+            f"</table>"
+            f"<div class='broker-card-footer'>"
+            f"<span>{buyer_count} 家 · 匯入量 / 當日量 {cov_pct}%</span>"
+            f"<span>顯示 {len(filtered_buyers)} 家</span>"
+            f"</div>"
+            f"</div>"
+        )
+        st.markdown(b_table_html, unsafe_allow_html=True)
 
         # 賣方分點速選按鈕（點擊即時切換）
         if filtered_sellers:
@@ -791,29 +793,6 @@ with tab_study:
                         st.rerun()
 
         # 卡片 2：賣方分點（完全還原圖一，高亮目前選定分點）
-        st.markdown(f"""
-        <div class='broker-card' style='margin-top:6px;'>
-            <div class='broker-card-header'>
-                <div style='display:flex; align-items:center;'>
-                    <span class='broker-badge-sell'>賣</span>
-                    <span style='font-size:14.5px; font-weight:bold; color:#FFFFFF;'>賣方分點</span>
-                </div>
-                <div style='font-size:13px;'>
-                    <b style='color:#10B981;'>{tot_sell_lots:,} 張</b>
-                    <span style='color:#64748B;'> · {source_tag}</span>
-                </div>
-            </div>
-            <table class='broker-table'>
-                <thead>
-                    <tr>
-                        <th style='text-align:left; width:50%;'>分點名稱</th>
-                        <th style='text-align:right; width:25%;'>賣出張數 ↓</th>
-                        <th style='text-align:right; width:25%;'>賣均價</th>
-                    </tr>
-                </thead>
-                <tbody>
-        """, unsafe_allow_html=True)
-
         s_rows_html = ""
         for idx, s in enumerate(filtered_sellers[:15]):
             is_active = (s['name'] == active_broker)
@@ -831,19 +810,40 @@ with tab_study:
         if not s_rows_html:
             s_rows_html = "<tr><td colspan='3' style='text-align:center; color:#64748B; padding:12px;'>無符合分點</td></tr>"
 
-        st.markdown(f"""
-                {s_rows_html}
-                </tbody>
-            </table>
-            <div class='broker-card-footer'>
-                <span>{seller_count} 家 · 匯入量 / 當日量 {cov_pct}%</span>
-                <span>顯示 {len(filtered_sellers)} 家</span>
-            </div>
-        </div>
-        <div style='font-size:12px; color:#64748B; margin-top:4px;'>
-            每個分點一行；同一分點的買、賣一起導入左側。尚未匯入的一側先顯示分點總表。
-        </div>
-        """, unsafe_allow_html=True)
+        s_table_html = (
+            f"<div class='broker-card' style='margin-top:6px;'>"
+            f"<div class='broker-card-header'>"
+            f"<div style='display:flex; align-items:center;'>"
+            f"<span class='broker-badge-sell'>賣</span>"
+            f"<span style='font-size:14.5px; font-weight:bold; color:#FFFFFF;'>賣方分點</span>"
+            f"</div>"
+            f"<div style='font-size:13px;'>"
+            f"<b style='color:#10B981;'>{tot_sell_lots:,} 張</b>"
+            f"<span style='color:#64748B;'> · {source_tag}</span>"
+            f"</div>"
+            f"</div>"
+            f"<table class='broker-table'>"
+            f"<thead>"
+            f"<tr>"
+            f"<th style='text-align:left; width:50%;'>分點名稱</th>"
+            f"<th style='text-align:right; width:25%;'>賣出張數 ↓</th>"
+            f"<th style='text-align:right; width:25%;'>賣均價</th>"
+            f"</tr>"
+            f"</thead>"
+            f"<tbody>"
+            f"{s_rows_html}"
+            f"</tbody>"
+            f"</table>"
+            f"<div class='broker-card-footer'>"
+            f"<span>{seller_count} 家 · 匯入量 / 當日量 {cov_pct}%</span>"
+            f"<span>顯示 {len(filtered_sellers)} 家</span>"
+            f"</div>"
+            f"</div>"
+            f"<div style='font-size:12px; color:#64748B; margin-top:4px;'>"
+            f"每個分點一行；同一分點的買、賣一起導入左側。尚未匯入的一側先顯示分點總表。"
+            f"</div>"
+        )
+        st.markdown(s_table_html, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════
 # 頁籤 02：資料匯入（Excel / CSV 批次管理介面）

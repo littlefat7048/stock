@@ -130,8 +130,8 @@ def get_searchable_stock_options():
 
     for s in clean_stocks:
         code = s['code']
-        meta = f"{s['market']} · {s['ind']}" if s['ind'] else s['market']
-        label = f"{code} {s['name']} ｜ {meta}"
+        # 精簡標籤：移除長贅字，只保留「代號 股名」，方便使用者在手機輸入與退格刪除！
+        label = f"{code} {s['name']}"
         options_list.append(label)
         code_to_label[code] = label
         label_to_code[label] = code
@@ -329,9 +329,30 @@ def get_common_css() -> str:
     全站響應式行動版與桌機深色樣式（超大字體・防遮擋高清晰版）
     1. 全面放大字體（內文 18px、次要 16px、標題 22~28px、大數字 26~34px）
     2. 頂部工具列改為不透明實心黑底並預留安全上邊距，防止滑動時遮蓋上方文字
+    3. 嚴格鎖定水平溢出，杜絕手機版左右滑動導致版面滑掉走位
     """
     return """
     <style>
+    /* ── 嚴格禁止全頁面橫向滑動（防止資料被滑掉/畫面左右位移） ── */
+    html, body {
+        overflow-x: hidden !important;
+        max-width: 100vw !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        touch-action: pan-y !important;
+    }
+    [data-testid="stAppViewContainer"] {
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        max-width: 100vw !important;
+        width: 100% !important;
+    }
+    .main, section.main, [data-testid="stMainBlockContainer"], .block-container {
+        overflow-x: hidden !important;
+        max-width: 100vw !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
     /* ── 全站基礎字體再放大 ── */
     html, body, [class*="css"], .stMarkdown, p, li, span, div {
         font-size: 18px;
@@ -397,7 +418,7 @@ def get_common_css() -> str:
         font-weight: bold !important;
     }
 
-    /* ── 橫向滑動晶片區（手機友善超大字版） ── */
+    /* ── 橫向滑動晶片區（限定在自己的容器內滾動，禁止撐大外層頁面） ── */
     .chips-scroll-bar {
         display: flex;
         overflow-x: auto;
@@ -406,6 +427,11 @@ def get_common_css() -> str:
         padding: 6px 2px 10px 2px;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
+        max-width: 100% !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        flex: 1 1 auto;
+        touch-action: pan-x !important;
     }
     .chips-scroll-bar::-webkit-scrollbar {
         display: none;
@@ -548,6 +574,114 @@ def get_common_css() -> str:
     }
     </style>
     """
+
+
+def inject_pwa_and_ux_enhancements():
+    """
+    注入 PWA 全螢幕模式 (Standalone App) 與手機端點擊輸入框自動全選 JS
+    1. 注入 PWA manifest, service worker 與 meta 標籤（支援 Android/iOS 獨立全螢幕 App，無網址列）
+    2. 點擊/聚焦輸入框時自動 select() 全選，支援一秒取代或單次退格清空
+    3. 全域鎖定 documentElement, body, container 之 overflowX = 'hidden'，徹底禁止手機頁面被滑掉
+    """
+    import streamlit.components.v1 as components
+    components.html("""
+    <script>
+    (function() {
+        try {
+            var p = window.parent || window.top;
+            if (!p || !p.document) return;
+            var doc = p.document;
+
+            // 1. 嚴格鎖定父視窗頁面禁止水平位移滑掉（動態注入高優先級樣式）
+            if (doc.head && !p._pwaOverflowLocked) {
+                p._pwaOverflowLocked = true;
+                var styleEl = doc.createElement('style');
+                styleEl.id = '_ux_overflow_lock';
+                styleEl.textContent = 'html, body { overflow-x: hidden !important; max-width: 100vw !important; touch-action: pan-y !important; } [data-testid="stAppViewContainer"] { overflow-x: hidden !important; overflow-y: auto !important; max-width: 100vw !important; } .main, .block-container { overflow-x: hidden !important; max-width: 100vw !important; }';
+                doc.head.appendChild(styleEl);
+            }
+            if (doc.documentElement) {
+                doc.documentElement.style.overflowX = 'hidden';
+                doc.documentElement.style.maxWidth = '100vw';
+            }
+            if (doc.body) {
+                doc.body.style.overflowX = 'hidden';
+                doc.body.style.maxWidth = '100vw';
+            }
+
+            // 2. 注入 PWA Web App Manifest 與全螢幕 Meta 標籤
+            if (doc.head && !p._pwaStandaloneInjected) {
+                p._pwaStandaloneInjected = true;
+                
+                var metas = [
+                    { name: 'mobile-web-app-capable', content: 'yes' },
+                    { name: 'apple-mobile-web-app-capable', content: 'yes' },
+                    { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
+                    { name: 'theme-color', content: '#0E1117' }
+                ];
+                metas.forEach(function(m) {
+                    var el = doc.querySelector('meta[name="' + m.name + '"]');
+                    if (!el) {
+                        el = doc.createElement('meta');
+                        el.name = m.name;
+                        doc.head.appendChild(el);
+                    }
+                    el.content = m.content;
+                });
+
+                // Manifest link
+                var link = doc.querySelector('link[rel="manifest"]');
+                if (!link) {
+                    link = doc.createElement('link');
+                    link.rel = 'manifest';
+                    link.href = '/app/static/manifest.json';
+                    doc.head.appendChild(link);
+                }
+
+                // Apple touch icon
+                var appleIcon = doc.querySelector('link[rel="apple-touch-icon"]');
+                if (!appleIcon) {
+                    appleIcon = doc.createElement('link');
+                    appleIcon.rel = 'apple-touch-icon';
+                    appleIcon.href = 'https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/1f4ca.png';
+                    doc.head.appendChild(appleIcon);
+                }
+            }
+
+            // 3. 註冊 Service Worker 滿足 Chrome PWA 安裝條件
+            if (window.navigator && window.navigator.serviceWorker && !p._pwaSwRegistered) {
+                p._pwaSwRegistered = true;
+                try {
+                    window.navigator.serviceWorker.register('/app/static/sw.js').catch(function(){});
+                } catch(e){}
+            }
+
+            // 4. 點擊/聚焦輸入框自動全選文字（一秒替換，無需從結尾逐字刪除）
+            if (!p._autoSelectInjected) {
+                p._autoSelectInjected = true;
+                function doSelect(target) {
+                    if (target && (target.tagName === 'INPUT' || target.getAttribute('role') === 'combobox')) {
+                        setTimeout(function() {
+                            try { target.select(); } catch(err){}
+                        }, 50);
+                    }
+                }
+                doc.addEventListener('focusin', function(e) { doSelect(e.target); });
+                doc.addEventListener('click', function(e) {
+                    if (e.target && e.target.tagName === 'INPUT') {
+                        // 延遲選取避免手機游標事件覆蓋
+                        setTimeout(function() {
+                            try { e.target.select(); } catch(err){}
+                        }, 80);
+                    }
+                });
+            }
+        } catch(err) {
+            console.error('UX script error:', err);
+        }
+    })();
+    </script>
+    """, height=0, width=0)
 
 
 def get_top_nav_html(active: str = 'home') -> str:

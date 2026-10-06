@@ -17,3 +17,6 @@ data/cache/ai_analysis_*.json
 data/cache/batch_intraday_*.json
 data/cache/screener_results_*.json
 data/cache/day_trading_*.json
+data/cache/broker_*.json
+data/cache/market_*.json
+data/cache/report_*.json

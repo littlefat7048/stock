@@ -20,13 +20,14 @@ from utils.helpers import (
     resolve_stock_query, get_tw_stock_chinese_info,
     get_concept_tags_for_stock, load_concept_data,
     get_common_css, get_top_nav_html, render_quote_table_html,
-    get_searchable_stock_options
+    get_searchable_stock_options, inject_pwa_and_ux_enhancements
 )
 from modules.data_fetcher import get_batch_quotes_with_intraday
 from modules.screener import scan_market_signals
 
 st.set_page_config(page_title='自選股看盤清單', page_icon='⭐', layout='wide')
 st.markdown(get_common_css(), unsafe_allow_html=True)
+inject_pwa_and_ux_enhancements()
 st.markdown(get_top_nav_html('watch'), unsafe_allow_html=True)
 
 st.title("⭐ 我的台股自選股看盤清單")

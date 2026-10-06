@@ -71,10 +71,14 @@ from modules.daily_report import (
     parse_stock_codes, get_available_dates
 )
 from modules.data_fetcher import get_twse_institutional_summary
-from utils.helpers import get_common_css, get_top_nav_html, get_searchable_stock_options, resolve_stock_query
+from utils.helpers import (
+    get_common_css, get_top_nav_html, get_searchable_stock_options,
+    resolve_stock_query, inject_pwa_and_ux_enhancements
+)
 
-# ── 注入自訂響應式 CSS 與頂部導覽列 ──────────────────────
+# ── 注入自訂響應式 CSS、PWA 全螢幕增強與頂部導覽列 ────────────
 st.markdown(get_common_css(), unsafe_allow_html=True)
+inject_pwa_and_ux_enhancements()
 st.markdown(get_top_nav_html('home'), unsafe_allow_html=True)
 
 # ── 側邊欄：日期選擇 ──────────────────────────────────────

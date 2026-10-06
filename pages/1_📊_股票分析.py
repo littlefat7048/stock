@@ -60,13 +60,14 @@ from utils.charts import (
     create_day_trading_chart
 )
 
-from utils.helpers import get_common_css, get_top_nav_html
+from utils.helpers import get_common_css, get_top_nav_html, inject_pwa_and_ux_enhancements
 
 st.set_page_config(page_title='台股個股深度分析', page_icon='📊', layout='wide')
 
 # ── 注入自訂繁體中文與手機響應式樣式及頂部導覽列 ──────────
 st.markdown(get_common_css(), unsafe_allow_html=True)
 st.markdown(get_top_nav_html('stock'), unsafe_allow_html=True)
+inject_pwa_and_ux_enhancements()
 
 # ── 股票代號或中文名稱即時搜尋區 ──────────────────────────
 options_list, code_to_label, label_to_code = get_searchable_stock_options()
@@ -85,8 +86,7 @@ current_label = code_to_label.get(current_code)
 if not current_label:
     cinfo = get_tw_stock_chinese_info(current_code)
     m_name = cinfo.get('name', current_code).replace('*', '').strip()
-    m_mkt = cinfo.get('market', '台股')
-    current_label = f"{current_code} {m_name} ｜ {m_mkt}"
+    current_label = f"{current_code} {m_name}"
     options_list = [current_label] + options_list
     code_to_label[current_code] = current_label
     label_to_code[current_label] = current_code
@@ -94,30 +94,33 @@ if not current_label:
 default_idx = options_list.index(current_label) if current_label in options_list else 0
 
 st.markdown(
-    "<div style='font-size:18px; font-weight:bold; color:#00D4AA; margin-bottom:4px;'>"
-    "🔍 台股即時智慧搜尋（輸入中文或數字即時聯想篩選，點選立即切換）："
+    "<div style='font-size:17.5px; font-weight:bold; color:#00D4AA; margin-bottom:4px;'>"
+    "🔍 台股即時智慧搜尋（點擊選單自動全選替換，或由右側直接輸入代號）："
     "</div>",
     unsafe_allow_html=True
 )
-col_search, col_manual = st.columns([3.8, 1.2])
+col_search, col_direct = st.columns([3.2, 1.8])
 with col_search:
     selected_label = st.selectbox(
-        "🔍 輸入台股代號或中文股名查詢（支援即時搜尋）",
+        "🔍 選擇股票",
         options=options_list,
         index=default_idx,
         key=f"stock_search_{current_code}",
-        help="點擊後直接打字（如輸入「國」、「23」、「台積電」），下拉清單即時聯想篩選，點選任一檔股票立即切換分析！",
+        help="點擊後打字即時篩選（如輸入「23」、「國巨」），已移除多餘冗長字串！",
         label_visibility="collapsed"
     )
-with col_manual:
-    manual_pop = st.popover("✏️ 手動輸入", use_container_width=True)
-    with manual_pop:
-        st.caption("若欲查詢未收錄之冷門權證或特殊代號：")
-        manual_code = st.text_input("輸入完整代號或股名：", key="manual_stock_input", placeholder="例如 2327 或 國巨")
-        if st.button("🚀 立即查詢", key="manual_search_btn", use_container_width=True):
-            if manual_code.strip():
-                st.session_state['target_stock'] = manual_code.strip()
-                st.rerun()
+with col_direct:
+    direct_input = st.text_input(
+        "🔍 快速打字",
+        placeholder="打代號/股名直達",
+        key="direct_stock_input",
+        label_visibility="collapsed"
+    )
+    if direct_input and direct_input.strip():
+        resolved_c = resolve_stock_query(direct_input.strip())
+        if resolved_c and resolved_c != current_code:
+            st.query_params['stock'] = resolved_c
+            st.rerun()
 
 # 當使用者在即時搜尋選單切換股票時
 new_selected_code = label_to_code.get(selected_label, current_code)
@@ -128,7 +131,7 @@ if new_selected_code != current_code:
 stock_code = current_code
 st.query_params['stock'] = stock_code
 
-# 熱門速選晶片（手機左右滑動，點擊直達）
+# 熱門速選晶片（手機限定容器內滑動，禁止撐破全頁寬度）
 quick_samples = [
     ('2330', '台積電'), ('2327', '國巨'), ('2882', '國泰金'),
     ('2317', '鴻海'), ('2454', '聯發科'), ('2382', '廣達'),
@@ -140,13 +143,15 @@ sample_chips = "".join([
     for qcode, qname in quick_samples
 ])
 st.markdown(
-    f'<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;">'
-    f'<div style="display:flex; align-items:center;">'
-    f'<span style="color:#94A3B8; font-size:17px; margin-right:6px; flex-shrink:0;">熱門：</span>'
-    f'<div class="chips-scroll-bar" style="margin:0; padding:2px 0;">{sample_chips}</div>'
+    f'<div style="width:100%; max-width:100%; box-sizing:border-box; overflow:hidden; margin-bottom:8px;">'
+    f'<div style="display:flex; align-items:center; width:100%; max-width:100%; box-sizing:border-box; overflow:hidden;">'
+    f'<span style="color:#94A3B8; font-size:16px; margin-right:6px; flex-shrink:0;">熱門：</span>'
+    f'<div class="chips-scroll-bar" style="flex:1; min-width:0; max-width:100%; margin:0; padding:2px 0;">{sample_chips}</div>'
     f'</div>'
-    f'<a href="/隔日沖與分點研究?stock={stock_code}" target="_self" class="stock-chip-link" style="border-color:#FFD700; color:#FFD700; font-weight:bold; font-size:16px;">'
+    f'<div style="margin-top:6px; width:100%;">'
+    f'<a href="/隔日沖與分點研究?stock={stock_code}" target="_self" class="stock-chip-link" style="border-color:#FFD700; color:#FFD700; font-weight:bold; font-size:15px; width:100%; justify-content:center; box-sizing:border-box;">'
     f'🎯 查看【{stock_code}】隔日沖手法與分點足跡 ➔</a>'
+    f'</div>'
     f'</div>',
     unsafe_allow_html=True
 )

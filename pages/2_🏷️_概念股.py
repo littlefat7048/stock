@@ -19,12 +19,13 @@ importlib.reload(modules.data_fetcher)
 
 from utils.helpers import (
     load_concept_data, get_common_css, get_top_nav_html,
-    render_quote_table_html
+    render_quote_table_html, inject_pwa_and_ux_enhancements
 )
 from modules.data_fetcher import get_batch_quotes_with_intraday
 
 st.set_page_config(page_title='台股概念股看盤', page_icon='🏷️', layout='wide')
 st.markdown(get_common_css(), unsafe_allow_html=True)
+inject_pwa_and_ux_enhancements()
 st.markdown(get_top_nav_html('concept'), unsafe_allow_html=True)
 
 # ── 專屬概念膠囊列樣式（仿看盤 App 頂部圓角膠囊標籤） ──────────

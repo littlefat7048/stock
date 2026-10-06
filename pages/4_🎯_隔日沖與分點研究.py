@@ -37,9 +37,14 @@ from modules.broker_analysis import (
     identify_overnight_broker
 )
 from utils.charts import create_intraday_footprint_chart
-from utils.helpers import get_searchable_stock_options, color_for_change
+from utils.helpers import (
+    get_searchable_stock_options, color_for_change,
+    get_common_css, inject_pwa_and_ux_enhancements
+)
 
 st.set_page_config(page_title="隔日沖手法研究 - 主力分點足跡", page_icon="🎯", layout="wide")
+st.markdown(get_common_css(), unsafe_allow_html=True)
+inject_pwa_and_ux_enhancements()
 
 # ══════════════════════════════════════════════════════════
 # 自訂深色現代專業看盤風格 CSS（完全還原圖一）

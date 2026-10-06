@@ -13,11 +13,12 @@ import sys
 import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-from utils.helpers import get_common_css, get_top_nav_html, render_quote_table_html
+from utils.helpers import get_common_css, get_top_nav_html, render_quote_table_html, inject_pwa_and_ux_enhancements
 from modules.screener import scan_market_signals, get_concept_rotation_rankings
 
 st.set_page_config(page_title='台股智慧策略推薦清單', page_icon='🚀', layout='wide')
 st.markdown(get_common_css(), unsafe_allow_html=True)
+inject_pwa_and_ux_enhancements()
 st.markdown(get_top_nav_html('radar'), unsafe_allow_html=True)
 
 # ── 自訂卡片與推薦清單專屬樣式 ─────────────────────────────

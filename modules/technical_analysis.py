@@ -57,6 +57,9 @@ def calculate_indicators(df: pd.DataFrame) -> pd.DataFrame:
     bb_std          = close.rolling(20).std()
     df['BB_upper']  = df['BB_middle'] + 2 * bb_std
     df['BB_lower']  = df['BB_middle'] - 2 * bb_std
+    bb_range        = (df['BB_upper'] - df['BB_lower']).replace(0, np.nan)
+    df['BB_bandwidth'] = (df['BB_upper'] - df['BB_lower']) / df['BB_middle'].replace(0, np.nan) * 100
+    df['BB_percent_b'] = (close - df['BB_lower']) / bb_range * 100
 
     return df
 
@@ -151,6 +154,87 @@ def get_kd_signal(df: pd.DataFrame) -> str:
         return f'🟢 KD 偏空向下（K={curr_k:.0f} < D={curr_d:.0f}）'
     except Exception:
         return '⚪ 中性'
+
+
+def get_bollinger_bands_signal(df: pd.DataFrame) -> dict:
+    """
+    布林通道 (Bollinger Bands, 20MA, ±2σ) 專業訊號診斷（全中文）
+    包含：通道狀態、上中下軌數值、帶寬 (BandWidth)、%b 位置、突破/回檔警示
+    """
+    default_res = {
+        'status': '⚪ 資料不足',
+        'detail': '需至少 20 根 K 棒方可計算布林通道',
+        'upper': 0.0,
+        'middle': 0.0,
+        'lower': 0.0,
+        'bandwidth': 0.0,
+        'percent_b': 0.0,
+        'is_squeeze': False,
+        'is_breakout_up': False,
+        'is_breakout_down': False
+    }
+    if df is None or len(df) < 20 or 'BB_upper' not in df.columns:
+        return default_res
+
+    try:
+        last = df.iloc[-1]
+        c = float(last['Close'])
+        u = float(last['BB_upper'])
+        m = float(last['BB_middle'])
+        l = float(last['BB_lower'])
+
+        if np.isnan(u) or np.isnan(m) or np.isnan(l) or m <= 0:
+            return default_res
+
+        # 帶寬 (BandWidth): (Upper - Lower) / Middle * 100
+        bw = ((u - l) / m * 100) if m > 0 else 0.0
+        # %b: (Close - Lower) / (Upper - Lower) * 100
+        pct_b = ((c - l) / (u - l) * 100) if (u - l) > 0 else 50.0
+
+        # 計算近期 20 日平均帶寬判斷是否極度壓縮
+        recent_bw = ((df['BB_upper'] - df['BB_lower']) / df['BB_middle'] * 100).dropna().tail(20)
+        is_squeeze = bool(bw < recent_bw.quantile(0.2) or bw < 6.0) if len(recent_bw) >= 5 else False
+        is_breakout_up = bool(c >= u)
+        is_breakout_down = bool(c <= l)
+
+        if is_breakout_up:
+            status = '🔥 突破上軌（多頭強攻噴出）'
+            detail = f'股價 ({c:,.2f}) 突破上軌 ({u:,.2f})，短線買盤強勢，但需留意乖離過大拉回或沿上軌持續走強'
+        elif c > m:
+            if pct_b >= 80:
+                status = '🔴 逼近上軌（強勢多頭格局）'
+                detail = f'股價 ({c:,.2f}) 位於中軌上方向上逼近上軌 ({u:,.2f})，多頭動能充沛'
+            else:
+                status = '🟠 站穩中軌（健康多頭通道）'
+                detail = f'股價 ({c:,.2f}) 站穩月線中軌 ({m:,.2f})，通道緩步向上運行'
+        elif is_breakout_down:
+            status = '❄️ 跌破下軌（超跌破底警示）'
+            detail = f'股價 ({c:,.2f}) 跌破下軌 ({l:,.2f})，空頭慣性強烈，短線尋求超跌反彈契機'
+        else:
+            if pct_b <= 20:
+                status = '🟢 逼近下軌（回測下軌支撐）'
+                detail = f'股價 ({c:,.2f}) 跌破中軌往向下逼近下軌 ({l:,.2f})，觀察下軌能否提供有效支撐'
+            else:
+                status = '⚖️ 位於中軌下方（偏弱整理震盪）'
+                detail = f'股價 ({c:,.2f}) 在中軌 ({m:,.2f}) 與下軌 ({l:,.2f}) 之間整理，短線待放量重回中軌'
+
+        if is_squeeze:
+            detail += ' ｜ ⚠️ 通道極度緊縮蓄勢中，即將展開大方向變盤突破！'
+
+        return {
+            'status': status,
+            'detail': detail,
+            'upper': round(u, 2),
+            'middle': round(m, 2),
+            'lower': round(l, 2),
+            'bandwidth': round(bw, 2),
+            'percent_b': round(pct_b, 1),
+            'is_squeeze': is_squeeze,
+            'is_breakout_up': is_breakout_up,
+            'is_breakout_down': is_breakout_down
+        }
+    except Exception as e:
+        return default_res
 
 
 def get_technical_score(df: pd.DataFrame) -> tuple:
@@ -286,6 +370,15 @@ def generate_instant_diagnosis(
         strengths.append(f"【短線轉折】KD {kd_txt}")
     elif '死亡交叉' in kd_txt:
         risks.append(f"【短線轉折】KD {kd_txt}")
+
+    # 布林通道訊號
+    bb_sig = get_bollinger_bands_signal(df_price)
+    if bb_sig.get('is_breakout_up'):
+        strengths.append(f"【布林通道】強勢突破上軌 ({bb_sig['upper']:,.2f})，多頭強攻主升段")
+    elif bb_sig.get('is_squeeze'):
+        strengths.append("【布林通道】通道極度緊縮蓄勢中，蘊釀重大方向變盤噴發")
+    elif bb_sig.get('is_breakout_down'):
+        risks.append(f"【布林通道】跌破下軌 ({bb_sig['lower']:,.2f})，空頭慣性強烈")
 
     # 2. 籌碼面優缺點（結合「法人力度：標準化 Z-Score + 佔股本比」雙層過濾）
     if chip_summary and chip_summary.get('available'):

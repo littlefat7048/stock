@@ -38,7 +38,8 @@ from modules.data_fetcher import (
 from modules.technical_analysis import (
     calculate_indicators, get_technical_score,
     get_ma_trend, get_macd_signal, get_kd_signal, get_rsi_signal,
-    find_support_resistance, generate_instant_diagnosis
+    find_support_resistance, generate_instant_diagnosis,
+    get_bollinger_bands_signal
 )
 from modules.chip_analysis import (
     get_institutional_trend, get_margin_trading,
@@ -57,7 +58,7 @@ from utils.charts import (
     create_candlestick_chart, create_macd_chart, create_kd_chart,
     create_rsi_chart, create_institutional_chart, create_margin_chart,
     create_eps_chart, create_revenue_chart, create_mofi_institutional_force_chart,
-    create_day_trading_chart
+    create_day_trading_chart, create_bollinger_bands_chart
 )
 
 from utils.helpers import get_common_css, get_top_nav_html, inject_pwa_and_ux_enhancements
@@ -487,8 +488,10 @@ if stock_code:
             macd_sig = get_macd_signal(df_price)
             kd_sig   = get_kd_signal(df_price)
             rsi_sig  = get_rsi_signal(df_price)
+            bb_sig   = get_bollinger_bands_signal(df_price)
 
             signals_display = [
+                ("🌊 布林通道 (BB)", bb_sig['status']),
                 ("均線排列 (MA)", ma_trend),
                 ("MACD 趨勢動能", macd_sig),
                 ("KD 隨機指標", kd_sig),
@@ -504,6 +507,19 @@ if stock_code:
                 )
 
             st.markdown(
+                f"<div class='info-card' style='border-left:4px solid #38BDF8;'>"
+                f"<div style='color:#38BDF8;font-size:17.5px;font-weight:bold;margin-bottom:6px;'>🌊 布林通道目前軌道位置</div>"
+                f"<div style='font-size:18px;line-height:1.8;'>"
+                f"• 上軌 (+2σ)：<b>{bb_sig['upper']:,.2f}</b> 元<br>"
+                f"• 中軌 (20MA)：<b>{bb_sig['middle']:,.2f}</b> 元<br>"
+                f"• 下軌 (-2σ)：<b>{bb_sig['lower']:,.2f}</b> 元<br>"
+                f"• 帶寬 (BandWidth)：<b>{bb_sig['bandwidth']:.1f}%</b><br>"
+                f"• 通道位置 (%b)：<b>{bb_sig['percent_b']:.1f}%</b>"
+                f"</div></div>",
+                unsafe_allow_html=True
+            )
+
+            st.markdown(
                 f"<div class='info-card'>"
                 f"<div style='color:#94A3B8;font-size:17px;margin-bottom:6px;'>📏 各期均線目前位置</div>"
                 f"<div style='font-size:18px;line-height:1.8;'>"
@@ -516,19 +532,51 @@ if stock_code:
             )
 
         with col_chart:
-            c_opt1, c_opt2 = st.columns([1.4, 1.6])
+            c_opt1, c_opt2 = st.columns([1.3, 1.7])
             with c_opt1:
                 k_range_label = st.radio(
-                    "🔍 選擇 K 線顯示週期（畫面鎖定防誤觸・點擊可看數值）",
+                    "🔍 選擇 K 線週期",
                     ["近2週(極大)", "近1月(放大)", "近3月(適中)", "近半年"],
                     index=1,
                     horizontal=True
                 )
             with c_opt2:
+                main_chart_mode = st.radio(
+                    "📊 主圖技術指標模式",
+                    ["🌊 布林通道 (BB)", "📈 移動均線 (MA)", "🌟 均線 ＋ 布林通道"],
+                    index=0,
+                    horizontal=True
+                )
+
+            show_bb = ("布林通道" in main_chart_mode)
+            show_mas = ("均線" in main_chart_mode)
+
+            if show_mas:
                 ma_options = st.multiselect(
                     "選擇顯示均線",
                     ['MA5', 'MA10', 'MA20', 'MA60', 'MA120', 'MA240'],
-                    default=['MA5', 'MA20', 'MA60']
+                    default=['MA5', 'MA20', 'MA60'] if not show_bb else ['MA5', 'MA60'],
+                    help="可勾選欲顯示的各期均線"
+                )
+            else:
+                ma_options = []
+
+            # 若開啟布林通道，顯示專屬即時軌道診斷橫幅
+            if show_bb:
+                bb_status_color = "#e53935" if ("突破上軌" in bb_sig['status'] or "逼近上軌" in bb_sig['status']) else ("#43a047" if "跌破下軌" in bb_sig['status'] else "#00D4AA")
+                st.markdown(
+                    f"<div style='background:#111827; border:1px solid #1F2937; border-left:4px solid {bb_status_color}; "
+                    f"border-radius:8px; padding:9px 13px; margin:2px 0 8px 0; font-size:17.5px;'>"
+                    f"<div style='display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;'>"
+                    f"<span style='color:#38BDF8; font-weight:bold; font-size:18.5px;'>🌊 布林通道 (20MA, ±2σ) 診斷：{bb_sig['status']}</span>"
+                    f"<span style='background:#1E293B; color:#94A3B8; font-size:15.5px; padding:2px 8px; border-radius:12px;'>"
+                    f"帶寬 {bb_sig['bandwidth']:.1f}% ｜ 通道位置(%b) {bb_sig['percent_b']:.1f}%</span>"
+                    f"</div>"
+                    f"<div style='color:#CBD5E1; margin-top:4px; font-size:16.5px; line-height:1.5;'>"
+                    f"{bb_sig['detail']}"
+                    f"</div>"
+                    f"</div>",
+                    unsafe_allow_html=True
                 )
 
             if "近2週" in k_range_label:
@@ -542,10 +590,28 @@ if stock_code:
 
             dt_df = day_trading.get('df') if (day_trading and day_trading.get('available')) else None
             st.plotly_chart(
-                create_candlestick_chart(df_price.tail(k_bars), ma_options, day_trading_df=dt_df),
+                create_candlestick_chart(
+                    df_price.tail(k_bars),
+                    selected_mas=ma_options,
+                    day_trading_df=dt_df,
+                    show_bollinger=show_bb
+                ),
                 use_container_width=True,
                 config=PLOTLY_CFG
             )
+
+            if show_bb:
+                with st.expander("📖 什麼是布林通道？點此查看「30 秒看懂布林軌道操作秘訣」教學", expanded=False):
+                    st.markdown("""
+                    <div style='font-size:17px; line-height:1.75; color:#E2E8F0;'>
+                    <b>🌊 布林通道（Bollinger Bands，20MA ± 2 個標準差）三大軌道核心觀念：</b><br>
+                    • <b>中軌（20MA 月線生命線・青藍色實線）：</b>多空強弱分水嶺。股價在中軌之上為多頭偏強格局；跌破中軌則轉弱回測。<br>
+                    • <b>上軌（+2σ 壓力線・天藍色虛線）：</b>約 95.4% 的價格會在通道內運行。突破上軌代表多頭動能極度強烈（噴出/軋空），但若連續衝出軌道外易引發正乖離過大短線拉回整理。<br>
+                    • <b>下軌（-2σ 支撐線・天藍色虛線）：</b>超跌臨界線。當股價摜破下軌後常醞釀跌深反彈，亦是短線尋找低接支撐的重要參考。<br>
+                    • <b>通道縮口（Squeeze 帶寬極小）：</b>當帶寬縮到極窄（上下軌距離非常近），代表主力正在壓單洗盤、籌碼高度沈澱，通常是<b>即將迎來大噴發或大變盤的重大起漲前兆</b>！<br>
+                    • <b>喇叭口放大開口：</b>當股價伴隨成交量突破上軌且上下軌同時向外擴張，代表主升段正式啟動！
+                    </div>
+                    """, unsafe_allow_html=True)
 
             # ── 緊接在 K 線與成交量下方：@MOFI「法人力度 (2026 版)」顯著買超副圖（還原圖一配置！）──
             if chip_df is not None and not chip_df.empty:
@@ -616,7 +682,7 @@ if stock_code:
             st.plotly_chart(create_rsi_chart(df_price.tail(k_bars)), use_container_width=True, config=PLOTLY_CFG)
 
             # 近 10 個交易日完整價量與技術指標明細表（不用點圖表也能查每天精確數字！）
-            with st.expander("📋 查看近 10 個交易日每日「開高低收、均線、KD、MACD、RSI」詳細數據表", expanded=True):
+            with st.expander("📋 查看近 10 個交易日每日「開高低收、布林通道、均線、KD、MACD、RSI」詳細數據表", expanded=True):
                 recent_10 = df_price.tail(10).iloc[::-1].copy()
                 table_rows = []
                 for idx_dt, r_row in recent_10.iterrows():
@@ -628,6 +694,10 @@ if stock_code:
                         '最高': round(float(r_row.get('High', 0)), 2),
                         '最低': round(float(r_row.get('Low', 0)), 2),
                         '量(張)': int(round(float(r_row.get('Volume', 0)) / 1000.0)),
+                        '布林上軌': round(float(r_row.get('BB_upper', 0) or 0), 2),
+                        '布林中軌': round(float(r_row.get('BB_middle', 0) or 0), 2),
+                        '布林下軌': round(float(r_row.get('BB_lower', 0) or 0), 2),
+                        '帶寬%': round(float(r_row.get('BB_bandwidth', 0) or 0), 1),
                         '5日線': round(float(r_row.get('MA5', 0) or 0), 2),
                         '20日線': round(float(r_row.get('MA20', 0) or 0), 2),
                         'K值': round(float(r_row.get('K', 0) or 0), 1),

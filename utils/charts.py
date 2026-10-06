@@ -101,21 +101,31 @@ def _apply_dark_layout(fig, bottom_margin=100, top_margin=54, legend_y=-0.24, is
     return fig
 
 
-def create_candlestick_chart(df, selected_mas=['MA5', 'MA20', 'MA60'], day_trading_df=None):
+def create_candlestick_chart(df, selected_mas=['MA5', 'MA20', 'MA60'], day_trading_df=None, show_bollinger=False):
     """
     專業 K 線與成交量全連動圖表（還原專業看盤軟體十字查價線功能）：
-    1. 上下全連動：點擊或懸停 K 線或成交量任一處，即刻同步顯示當日完整四價、漲跌、振幅、成交張數、5MA/20MA均量、當沖數據與各期均線數值。
+    1. 上下全連動：點擊或懸停 K 線或成交量任一處，即刻同步顯示當日完整四價、漲跌、振幅、成交張數、5MA/20MA均量、當沖數據、布林通道與各期均線數值。
     2. 十字查價線 (Crosshair)：金色虛線貫穿上下雙圖表，精準對齊同一交易日。
     3. 成交量附帶 5日均量線 (黃色) 與 20日均量線 (青色)。
     4. 支援當沖率 (Day Trading Ratio) 與當沖張數整合顯示。
-    5. 自動剔除非交易日，K 線緊密相連。
+    5. 支援布林通道 (Bollinger Bands)：上軌 (+2σ)、中軌 (20MA)、下軌 (-2σ) 與通道半透明雲帶。
+    6. 自動剔除非交易日，K 線緊密相連。
     """
+    sub_title_1 = '🌊 股價 K 線與布林通道走勢（上中下軌・紅漲綠跌・上下連動）' if show_bollinger else '📈 股價 K 線與均線走勢（紅漲綠跌・十字查價上下連動）'
     fig = make_subplots(
         rows=2, cols=1, shared_xaxes=True,
         vertical_spacing=0.08,
-        subplot_titles=('📈 股價 K 線與均線走勢（紅漲綠跌・十字查價上下連動）', '📊 成交量（張）與 5MA / 20MA 均量走勢'),
+        subplot_titles=(sub_title_1, '📊 成交量（張）與 5MA / 20MA 均量走勢'),
         row_width=[0.28, 0.72]
     )
+
+    if show_bollinger:
+        if 'BB_upper' not in df.columns or df['BB_upper'].isnull().all():
+            df = df.copy()
+            df['BB_middle'] = df['Close'].rolling(20).mean()
+            bb_std = df['Close'].rolling(20).std()
+            df['BB_upper'] = df['BB_middle'] + 2 * bb_std
+            df['BB_lower'] = df['BB_middle'] - 2 * bb_std
 
     # 成交量轉換為「張」（每張 = 1,000 股）
     vol_lots = [round(float(v) / 1000.0, 1) for v in df['Volume']]
@@ -130,7 +140,7 @@ def create_candlestick_chart(df, selected_mas=['MA5', 'MA20', 'MA60'], day_tradi
             d_key = r.get('DateStr') or (idx.strftime('%Y-%m-%d') if hasattr(idx, 'strftime') else str(idx)[:10])
             dt_map[d_key] = (float(r.get('DayTradingLots', 0)), float(r.get('DayTradingRatio', 0.0)))
 
-    # 1. 產生 K 線圖「上下全連動」懸浮卡片（涵蓋：四價、漲跌幅、振幅、成交張數、均量、均線、當沖）
+    # 1. 產生 K 線圖「上下全連動」懸浮卡片（涵蓋：四價、漲跌幅、振幅、成交張數、均量、布林通道、均線、當沖）
     k_tooltips = []
     prev_close = None
     for idx_val, row in df.iterrows():
@@ -161,6 +171,23 @@ def create_candlestick_chart(df, selected_mas=['MA5', 'MA20', 'MA60'], day_tradi
             dt_color = '#FF5252' if dt_r >= 60 else '#FFA726' if dt_r >= 40 else '#38BDF8'
             dt_line = f"• 當沖量: <b>{dt_l:,.0f} 張</b> ｜ 當沖率: <b style='color:{dt_color};'>{dt_r:.1f}%</b><br>"
 
+        # 布林通道資訊
+        bb_line = ""
+        if show_bollinger and 'BB_upper' in row and pd.notnull(row['BB_upper']):
+            u_v = float(row['BB_upper'])
+            m_v = float(row.get('BB_middle', 0))
+            l_v = float(row.get('BB_lower', 0))
+            bw_v = ((u_v - l_v) / m_v * 100) if m_v > 0 else 0.0
+            pct_b_v = ((c - l_v) / (u_v - l_v) * 100) if (u_v - l_v) > 0 else 50.0
+            bb_line = (
+                f"━━━━━━━━━━━━━━━━━━<br>"
+                f"🌊 <b>【布林通道 (20MA, ±2σ)】</b><br>"
+                f"• 上軌 (+2σ): <b style='color:#38BDF8;'>{u_v:,.2f}</b><br>"
+                f"• 中軌 (20MA): <b style='color:#00E5FF;'>{m_v:,.2f}</b><br>"
+                f"• 下軌 (-2σ): <b style='color:#38BDF8;'>{l_v:,.2f}</b><br>"
+                f"• 帶寬: <b>{bw_v:.1f}%</b> ｜ 通道位置(%b): <b>{pct_b_v:.1f}%</b><br>"
+            )
+
         # 均線資訊
         ma_parts = []
         ma_color_map = {'MA5': '#FFD700', 'MA10': '#FF80AB', 'MA20': '#00E5FF', 'MA60': '#FF9100', 'MA120': '#B388FF', 'MA240': '#69F0AE'}
@@ -182,12 +209,38 @@ def create_candlestick_chart(df, selected_mas=['MA5', 'MA20', 'MA60'], day_tradi
             f"• 成交量: <b style='color:#FFD700;'>{v:,.0f} 張</b><br>"
             f"• 5日均量: <b>{v5_str}</b> ｜ 20日均量: <b>{v20_str}</b><br>"
             f"{dt_line}"
+            f"{bb_line}"
             f"━━━━━━━━━━━━━━━━━━<br>"
             f"📏 <b>【均線位置】</b><br>"
             f"{ma_line}"
         )
         k_tooltips.append(card)
         prev_close = c
+
+    # 若開啟布林通道，先繪製通道背景色帶與上下中軌
+    if show_bollinger and 'BB_upper' in df.columns:
+        fig.add_trace(go.Scatter(
+            x=df.index, y=df['BB_lower'],
+            line=dict(color='rgba(56, 189, 248, 0.75)', width=1.5, dash='dash'),
+            name='布林下軌 (20MA-2σ)',
+            hoverinfo='skip'
+        ), row=1, col=1)
+
+        fig.add_trace(go.Scatter(
+            x=df.index, y=df['BB_upper'],
+            line=dict(color='rgba(56, 189, 248, 0.75)', width=1.5, dash='dash'),
+            fill='tonexty',
+            fillcolor='rgba(56, 189, 248, 0.08)',
+            name='布林上軌 (20MA+2σ)',
+            hoverinfo='skip'
+        ), row=1, col=1)
+
+        fig.add_trace(go.Scatter(
+            x=df.index, y=df['BB_middle'],
+            line=dict(color='#00E5FF', width=2.0),
+            name='布林中軌 (20MA)',
+            hoverinfo='skip'
+        ), row=1, col=1)
 
     fig.add_trace(go.Candlestick(
         x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'],
@@ -245,6 +298,22 @@ def create_candlestick_chart(df, selected_mas=['MA5', 'MA20', 'MA60'], day_tradi
             dt_color = '#FF5252' if dt_r >= 60 else '#FFA726' if dt_r >= 40 else '#38BDF8'
             dt_line = f"• 當沖量: <b>{dt_l:,.0f} 張</b> ｜ 當沖率: <b style='color:{dt_color};'>{dt_r:.1f}%</b><br>"
 
+        bb_line = ""
+        if show_bollinger and 'BB_upper' in row and pd.notnull(row['BB_upper']):
+            u_v = float(row['BB_upper'])
+            m_v = float(row.get('BB_middle', 0))
+            l_v = float(row.get('BB_lower', 0))
+            bw_v = ((u_v - l_v) / m_v * 100) if m_v > 0 else 0.0
+            pct_b_v = ((c - l_v) / (u_v - l_v) * 100) if (u_v - l_v) > 0 else 50.0
+            bb_line = (
+                f"━━━━━━━━━━━━━━━━━━<br>"
+                f"🌊 <b>【布林通道 (20MA, ±2σ)】</b><br>"
+                f"• 上軌 (+2σ): <b style='color:#38BDF8;'>{u_v:,.2f}</b><br>"
+                f"• 中軌 (20MA): <b style='color:#00E5FF;'>{m_v:,.2f}</b><br>"
+                f"• 下軌 (-2σ): <b style='color:#38BDF8;'>{l_v:,.2f}</b><br>"
+                f"• 帶寬: <b>{bw_v:.1f}%</b> ｜ 通道位置(%b): <b>{pct_b_v:.1f}%</b><br>"
+            )
+
         ma_parts = []
         ma_color_map = {'MA5': '#FFD700', 'MA10': '#FF80AB', 'MA20': '#00E5FF', 'MA60': '#FF9100', 'MA120': '#B388FF', 'MA240': '#69F0AE'}
         for ma in selected_mas:
@@ -260,6 +329,7 @@ def create_candlestick_chart(df, selected_mas=['MA5', 'MA20', 'MA60'], day_tradi
             f"• 成交量: <b style='color:#FFD700;'>{v:,.0f} 張</b><br>"
             f"• 5日均量: <b>{v5_str}</b> ｜ 20日均量: <b>{v20_str}</b><br>"
             f"{dt_line}"
+            f"{bb_line}"
             f"━━━━━━━━━━━━━━━━━━<br>"
             f"📈 <b>【對應股價（上下連動）】</b><br>"
             f"• 收盤價: <b style='color:{c_color};'>{c:,.2f} ({chg:+,.2f} / {pct:+.2f}%)</b><br>"
@@ -325,6 +395,15 @@ def create_candlestick_chart(df, selected_mas=['MA5', 'MA20', 'MA60'], day_tradi
         spikedash='dot'
     )
     return fig
+
+
+def create_bollinger_bands_chart(df, day_trading_df=None, selected_mas=None):
+    """
+    專屬布林通道 K 線圖表（包含上軌 +2σ、中軌 20MA、下軌 -2σ、半透明通道雲帶、紅漲綠跌 K 棒與上下連動十字查價）
+    """
+    if selected_mas is None:
+        selected_mas = []
+    return create_candlestick_chart(df, selected_mas=selected_mas, day_trading_df=day_trading_df, show_bollinger=True)
 
 
 def create_macd_chart(df):

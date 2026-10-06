@@ -631,7 +631,9 @@ def inject_pwa_and_ux_enhancements():
 
                 // Manifest link
                 var link = doc.querySelector('link[rel="manifest"]');
-                if (!link) {
+                if (link) {
+                    link.href = '/app/static/manifest.json';
+                } else {
                     link = doc.createElement('link');
                     link.rel = 'manifest';
                     link.href = '/app/static/manifest.json';

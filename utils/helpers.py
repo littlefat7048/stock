@@ -268,13 +268,14 @@ def get_concept_tags_for_stock(code: str, concept_data: dict = None) -> list:
 
 def get_concept_details_for_stock(code: str, concept_data: dict = None) -> list:
     """
-    回傳該股票在各概念中的詳細定位與同概念夥伴
+    回傳該股票在各概念中的詳細定位與同概念夥伴（自動去重，防止同概念在不同大分類重複出現）
     """
     if concept_data is None:
         concept_data = load_concept_data()
 
     code = str(code).strip()
     details = []
+    seen_concepts = set()
     categories = concept_data.get('概念分類', {})
     for big_cat, sub_cats in categories.items():
         if not isinstance(sub_cats, dict):
@@ -282,9 +283,12 @@ def get_concept_details_for_stock(code: str, concept_data: dict = None) -> list:
         for concept_name, cinfo in sub_cats.items():
             if not isinstance(cinfo, dict):
                 continue
+            if concept_name in seen_concepts:
+                continue
             stocks_list = cinfo.get('stocks', [])
             for s in stocks_list:
                 if isinstance(s, dict) and str(s.get('code')).strip() == code:
+                    seen_concepts.add(concept_name)
                     details.append({
                         'big_category': big_cat,
                         'concept_name': concept_name,
@@ -292,6 +296,7 @@ def get_concept_details_for_stock(code: str, concept_data: dict = None) -> list:
                         'role': s.get('role', '概念成員'),
                         'related_stocks': stocks_list
                     })
+                    break
     return details
 
 

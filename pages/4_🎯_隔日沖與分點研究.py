@@ -685,7 +685,7 @@ with tab_study:
                     btn_type = "primary" if is_cur else "secondary"
                     # 依多空標記前綴
                     b_mark = "🔴" if b_item['buy_lots'] >= b_item['sell_lots'] else "🟢"
-                    if st.button(f"{b_mark} {b_item['name']}", key=f"chip_b_{b_item['name']}", type=btn_type, use_container_width=True):
+                    if st.button(f"{b_mark} {b_item['name']}", key=f"chip_b_{b_item['name']}_{c_i}", type=btn_type, use_container_width=True):
                         st.session_state['active_selected_broker'] = b_item['name']
                         st.rerun()
 
@@ -732,7 +732,7 @@ with tab_study:
                 with top_b_chips[bi]:
                     is_cur = (b_item['name'] == active_broker)
                     b_type = "primary" if is_cur else "secondary"
-                    if st.button(f"🔴 {b_item['name']}", key=f"btn_buy_{b_item['name']}", type=b_type, use_container_width=True):
+                    if st.button(f"🔴 {b_item['name']}", key=f"btn_buy_{b_item['name']}_{bi}", type=b_type, use_container_width=True):
                         st.session_state['active_selected_broker'] = b_item['name']
                         st.rerun()
 
@@ -793,7 +793,7 @@ with tab_study:
                 with top_s_chips[si]:
                     is_cur = (s_item['name'] == active_broker)
                     s_type = "primary" if is_cur else "secondary"
-                    if st.button(f"🟢 {s_item['name']}", key=f"btn_sell_{s_item['name']}", type=s_type, use_container_width=True):
+                    if st.button(f"🟢 {s_item['name']}", key=f"btn_sell_{s_item['name']}_{si}", type=s_type, use_container_width=True):
                         st.session_state['active_selected_broker'] = s_item['name']
                         st.rerun()
 

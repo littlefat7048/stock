@@ -1351,7 +1351,7 @@ if stock_code:
         # 1. 概念股供應鏈角色與夥伴
         if concept_details:
             st.markdown("#### 🔗 所屬熱門題材與供應鏈角色")
-            for citem in concept_details:
+            for c_idx, citem in enumerate(concept_details):
                 st.markdown(
                     f"<div class='info-card' style='border-left:4px solid #FFB300;'>"
                     f"<div style='font-size:21px;font-weight:bold;color:#FFD54F;'>"
@@ -1372,7 +1372,7 @@ if stock_code:
                         with rcols[idx % len(rcols)]:
                             if st.button(
                                 f"{rs['code']} {rs['name']}\n({rs.get('role', '')[:8]})",
-                                key=f"rel_{citem['concept_name']}_{rs['code']}_{idx}",
+                                key=f"rel_{c_idx}_{citem['concept_name']}_{rs['code']}_{idx}",
                                 use_container_width=True
                             ):
                                 st.session_state['target_stock'] = rs['code']
@@ -1388,7 +1388,7 @@ if stock_code:
                 with p_cols[idx % 6]:
                     if st.button(
                         f"{peer['code']} {peer['name']}\n[{peer['market']}]",
-                        key=f"peer_{peer['code']}",
+                        key=f"peer_{peer['code']}_{idx}",
                         use_container_width=True
                     ):
                         st.session_state['target_stock'] = peer['code']

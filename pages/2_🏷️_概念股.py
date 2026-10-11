@@ -164,12 +164,17 @@ if view_mode == "🏷️ 熱門題材即時看盤":
     PRIORITY_CONCEPTS = [
         ('玻璃基板', '玻璃基板'),
         ('光通訊CPO', '光通訊'),
-        ('InP磷化銦', 'InP'),
-        ('封裝測試', '封測'),
-        ('高價千金股', '高價股'),
+        ('BBU備援電池', 'BBU電池'),
+        ('半導體特用化學', '半導體特化'),
         ('CoWoS先進封裝', 'CoWoS'),
         ('AI伺服器', 'AI伺服器'),
         ('散熱模組', '散熱模組'),
+        ('CCL高速銅箔基板', 'CCL銅箔基板'),
+        ('伺服器連接與線材', '連接器/線材'),
+        ('ASIC設計服務', 'ASIC設計'),
+        ('InP磷化銦', 'InP'),
+        ('封裝測試', '封測'),
+        ('高價千金股', '高價股'),
         ('AI機器人與視覺', '機器人'),
         ('HBM高頻寬記憶體', 'HBM'),
         ('IC設計', 'IC設計'),
@@ -377,8 +382,9 @@ elif view_mode == "🌐 上中下游產業鏈地圖":
 
     chain_options = {
         'cpo_optical': '⚡ 光通訊 ＆ CPO 共同封裝光學產業鏈',
+        'semiconductor_chemicals': '🧪 半導體特用化學 ＆ 先進材料產業鏈',
         'cowos_packaging': '🔬 CoWoS 先進封裝 ＆ 半導體製程設備鏈',
-        'ai_server_cooling': '🖥️ AI 伺服器整機 ＆ 水冷散熱系統鏈'
+        'ai_server_cooling': '🖥️ AI 伺服器整機 ＆ 水冷供電機構鏈'
     }
 
     c_choice = st.selectbox(

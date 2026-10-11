@@ -1,0 +1,539 @@
+{
+  "_meta": {
+    "version": "2026-10-11",
+    "description": "全球美股科技巨頭對標台股供應鏈庫 ＆ 核心熱門題材上中下游地圖",
+    "source": "綜合證交所產業價值鏈資訊平台、法人研究報告、公開觀測站"
+  },
+  "global_giants": {
+    "lumentum": {
+      "ticker": "LITE",
+      "name": "Lumentum Holdings Inc.",
+      "chinese_name": "Lumentum (全球光通訊與雷射巨頭)",
+      "market": "NASDAQ",
+      "sector": "AI高速光通訊 / 矽光子 / CPO",
+      "description": "全球光通訊與工業雷射霸主，受惠 AI 資料中心 800G/1.6T 高速光互聯需求爆發，高功率 CW 雷射與 EML 訂單滿載至 2029 年；收購雲暉科技 (Cloud Light) 後直接出貨光收發模組給 Google TPU 等雲端巨頭。",
+      "catalysts": [
+        "AI 資料中心訂單能見度直達 2029 年，產能供不應求缺口達 70%",
+        "光進銅退革命：800G/1.6T 與 CPO 共同封裝光學必備 EML 與高功率連續波雷射",
+        "併購雲暉科技 (Cloud Light) 效應發酵，直通四大 CSP 雲端客戶"
+      ],
+      "supply_chain": {
+        "upstream": [
+          {
+            "code": "3081",
+            "name": "聯亞",
+            "role": "磊晶材料",
+            "details": "全球 InP 磷化銦磊晶龍頭，為矽光子用連續波雷射 (CW Laser) 與高速 EML 之核心材料供應商。"
+          },
+          {
+            "code": "2455",
+            "name": "全新",
+            "role": "磊晶材料",
+            "details": "III-V 族化合物半導體磊晶片，供應高速光接收端 (PD) 與發光端雷射基板材料。"
+          },
+          {
+            "code": "4971",
+            "name": "IET-KY",
+            "role": "磊晶材料",
+            "details": "MBE 分子束磊晶大廠，深耕 InP 高速光感測與雷射磊晶技術。"
+          }
+        ],
+        "midstream": [
+          {
+            "code": "3105",
+            "name": "穩懋",
+            "role": "晶圓代工製造",
+            "details": "全球化合物半導體代工龍頭，長期為 Lumentum 代工 InP 雷射晶片、VCSEL 與 PD 感測元件，為直接受惠者。"
+          },
+          {
+            "code": "8086",
+            "name": "宏捷科",
+            "role": "晶圓代工製造",
+            "details": "砷化鎵與磷化銦晶圓代工二哥，受惠全球光通訊光電晶片代工外溢商機。"
+          }
+        ],
+        "downstream": [
+          {
+            "code": "3450",
+            "name": "聯鈞",
+            "role": "雷射封裝與光模組",
+            "details": "雷射元件封裝 (COS) 與光收發模組代工大廠，透過轉投資源傑科技切入高速矽光子與 CPO 封裝。"
+          },
+          {
+            "code": "3363",
+            "name": "上詮",
+            "role": "光纖陣列 / CPO 耦合",
+            "details": "台積電 CPO 矽光子聯盟核心夥伴，專精光纖陣列 (FAU)，為光訊號進出 CPO 晶片之關鍵連接通道。"
+          },
+          {
+            "code": "6442",
+            "name": "光聖",
+            "role": "光被動元件 / 跳接線",
+            "details": "北美四大雲端服務商 (CSP) 資料中心高階光纖跳接線與被動元件主力供應商，毛利率超過 50%。"
+          },
+          {
+            "code": "4979",
+            "name": "華星光",
+            "role": "高速光收發模組",
+            "details": "深耕 400G/800G 高速光收發模組與光發射接收元件 (OSA)，與美系網通晶片巨頭深度綁定。"
+          },
+          {
+            "code": "6451",
+            "name": "訊芯-KY",
+            "role": "CPO 系統級封裝 (SiP)",
+            "details": "鴻海集團旗下先進封測廠，專注於 800G/1.6T CPO 共同封裝光學之光學引擎封測代工。"
+          },
+          {
+            "code": "3163",
+            "name": "波若威",
+            "role": "光波長分波多工",
+            "details": "光纖被動元件大廠，產品涵蓋 WDM 分波多工模組與高階光纖分支套件，切入 800G 供應鏈。"
+          }
+        ]
+      }
+    },
+    "nvidia": {
+      "ticker": "NVDA",
+      "name": "NVIDIA Corporation",
+      "chinese_name": "輝達 (全球 AI 算力晶片龍頭)",
+      "market": "NASDAQ",
+      "sector": "AI 算力 GPU / Blackwell / NVLink",
+      "description": "全球生成式 AI 算力霸主，引領 Blackwell (B200, GB200 NVL72) 平台，建構全球最大規模 AI 資料中心架構，帶動台積電先進製程、CoWoS、水冷散熱與 AI 伺服器整機全面爆發。",
+      "catalysts": [
+        "Blackwell 架構晶片供不應求，各大雲端巨頭 (CSP) 瘋狂搶購",
+        "GB200 NVL72 伺服器機櫃全面導入水冷散熱與高速 NVLink 銅光混合互連",
+        "主導全球 AI 算力叢集規格，台股硬體代工為其全球唯一製造後盾"
+      ],
+      "supply_chain": {
+        "upstream": [
+          {
+            "code": "2330",
+            "name": "台積電",
+            "role": "晶圓代工與 CoWoS",
+            "details": "NVIDIA GPU 晶片 3nm/4nm 先進製程獨家代工廠，以及 CoWoS-L/S 先進封裝核心推手。"
+          },
+          {
+            "code": "3443",
+            "name": "創意",
+            "role": "ASIC 設計與 IP",
+            "details": "台積電轉投資 ASIC 設計服務，提供 HBM 與高速傳輸介面 IP。"
+          },
+          {
+            "code": "6223",
+            "name": "旺矽",
+            "role": "探針卡測試介面",
+            "details": "全球探針卡龍頭，供應 NVIDIA AI 晶片高階 VPC 垂直探針卡測試介面。"
+          },
+          {
+            "code": "6515",
+            "name": "穎崴",
+            "role": "高頻同軸測試座",
+            "details": "提供高階 GPU 與 AI 晶片測試所需之同軸測試座 (Test Socket)。"
+          }
+        ],
+        "midstream": [
+          {
+            "code": "3711",
+            "name": "日月光投控",
+            "role": "先進封測代工",
+            "details": "全球封測龍頭，支援 NVIDIA GPU 後段測試與先進封裝分流產能。"
+          },
+          {
+            "code": "3017",
+            "name": "奇鋐",
+            "role": "水冷散熱模組 / 3D VC",
+            "details": "NVIDIA Blackwell GB200 水冷板 (Cold Plate) 與散熱模組主力供應商。"
+          },
+          {
+            "code": "3324",
+            "name": "雙鴻",
+            "role": "水冷散熱系統",
+            "details": "水冷板、水冷分配器 (CDU) 與散熱歧管完整水冷散熱解決方案供應商。"
+          },
+          {
+            "code": "2308",
+            "name": "台達電",
+            "role": "AI 伺服器超高功率電源",
+            "details": "全球電源供應器龍頭，獨家供應 GB200 NVL72 5500W 超高功率電源機架與散熱方案。"
+          },
+          {
+            "code": "2059",
+            "name": "川湖",
+            "role": "伺服器高耐重導軌",
+            "details": "全球高階伺服器滑軌市佔率超過 70%，為 NVIDIA 機櫃指定重載滑軌夥伴。"
+          }
+        ],
+        "downstream": [
+          {
+            "code": "2382",
+            "name": "廣達",
+            "role": "AI 伺服器整機 ODM",
+            "details": "旗下雲達 (QCT) 為 NVIDIA GB200 NVL72 首批出貨之核心系統整合龍頭。"
+          },
+          {
+            "code": "2317",
+            "name": "鴻海",
+            "role": "伺服器 EMS / NVL72",
+            "details": "全球電子代工巨霸，垂直整合機櫃、散熱、交換器，為 GB200 重要代工廠。"
+          },
+          {
+            "code": "6669",
+            "name": "緯穎",
+            "role": "超大規模 CSP 伺服器",
+            "details": "專注微軟、Meta、AWS 等美系雲端巨頭資料中心整機代工，受惠 AI 伺服器出貨量。"
+          },
+          {
+            "code": "3231",
+            "name": "緯創",
+            "role": "GPU 運算主機板 (Compute Board)",
+            "details": "NVIDIA GPU 運算基板 (UBB/OAM) 主力製造代工廠。"
+          },
+          {
+            "code": "2376",
+            "name": "技嘉",
+            "role": "AI 伺服器系統",
+            "details": "彈性設計能力強，搶攻中小企業與第二線雲端營運商之 NVIDIA GPU 伺服器需求。"
+          }
+        ]
+      }
+    },
+    "broadcom": {
+      "ticker": "AVGO",
+      "name": "Broadcom Inc.",
+      "chinese_name": "博通 (網通晶片與客製化 ASIC 霸主)",
+      "market": "NASDAQ",
+      "sector": "資料中心網路交換器 / ASIC / CPO",
+      "description": "全球網通交換器晶片 (Tomahawk) 與客製化 AI ASIC (如 Google TPU、Meta MTIA) 霸主，在共同封裝光學 (CPO) 與高速乙太網路架構中擁有極高話語權。",
+      "catalysts": [
+        "Tomahawk 5 (51.2T) 交換器晶片出貨暢旺，新一代 102.4T 引領高速網路升級",
+        "為 Google、Meta、字節跳動打造客製化 AI ASIC 晶片出貨暴增",
+        "大力推進 CPO (共同封裝光學) 光引擎技術，建立開放光學交換生態"
+      ],
+      "supply_chain": {
+        "upstream": [
+          {
+            "code": "2330",
+            "name": "台積電",
+            "role": "晶圓代工與先進封裝",
+            "details": "博通網路晶片與 ASIC 晶片之 3nm/5nm 先進製程與 CoWoS 主要代工廠。"
+          },
+          {
+            "code": "3105",
+            "name": "穩懋",
+            "role": "化合物半導體代工",
+            "details": "代工博通手機射頻 (RF) 功率放大器 (PA) 與光通訊元件。"
+          }
+        ],
+        "midstream": [
+          {
+            "code": "6451",
+            "name": "訊芯-KY",
+            "role": "CPO 封測代工",
+            "details": "與博通深度合作，負責博通次世代 CPO 光引擎與 SiP 系統級封裝代工。"
+          },
+          {
+            "code": "4977",
+            "name": "眾達-KY",
+            "role": "外部雷射光源 / CPO",
+            "details": "與博通共同開發 CPO 之外接光源模組 (ELS) 與雷射收發架構。"
+          },
+          {
+            "code": "3450",
+            "name": "聯鈞",
+            "role": "高速光模組封裝",
+            "details": "提供博通規格之雷射封裝與光學次系統代工。"
+          }
+        ],
+        "downstream": [
+          {
+            "code": "2345",
+            "name": "智邦",
+            "role": "白牌網路交換器龍頭",
+            "details": "全球大型資料中心 400G/800G 白牌交換器龍頭，大量採用博通晶片出貨予美系雲端巨頭。"
+          },
+          {
+            "code": "3380",
+            "name": "明泰",
+            "role": "網通設備製造",
+            "details": "資料中心與電信級高速網路交換器代工。"
+          }
+        ]
+      }
+    },
+    "apple": {
+      "ticker": "AAPL",
+      "name": "Apple Inc.",
+      "chinese_name": "蘋果公司 (全球消費性電子與 Apple Intelligence 巨頭)",
+      "market": "NASDAQ",
+      "sector": "智慧型手機 / 邊緣 AI / 穿戴裝置",
+      "description": "全球消費電子霸主，以 Apple Intelligence 引領邊緣 AI 終端換機潮，台廠供應鏈涵蓋處理器晶片、光學鏡頭、機殼、載板與組裝代工。",
+      "catalysts": [
+        "iPhone 導入 Apple Intelligence 引爆換機週期",
+        "A 系列與 M 系列晶片全面推進台積電 3nm 先進製程",
+        "折疊裝置、潛望式長焦鏡頭與穿戴生態升級"
+      ],
+      "supply_chain": {
+        "upstream": [
+          {
+            "code": "2330",
+            "name": "台積電",
+            "role": "A/M 系列晶片獨家代工",
+            "details": "Apple 核心處理器晶片之 3nm 製程獨家代工廠，最大客戶佔台積電營收約 25%。"
+          },
+          {
+            "code": "3008",
+            "name": "大立光",
+            "role": "高階光學鏡頭龍頭",
+            "details": "iPhone 潛望式長焦鏡頭與高階塑膠鏡片主力供應商，技術壁壘極高。"
+          },
+          {
+            "code": "3406",
+            "name": "玉晶光",
+            "role": "超廣角 / 潛望鏡頭",
+            "details": "供應 iPhone 前鏡頭、超廣角鏡頭以及 VR/AR Pancake 透鏡。"
+          },
+          {
+            "code": "3105",
+            "name": "穩懋",
+            "role": "PA 晶圓代工",
+            "details": "透過美系客戶代工 iPhone 5G 射頻功率放大器與 FaceID 3D 感測 VCSEL。"
+          }
+        ],
+        "midstream": [
+          {
+            "code": "3037",
+            "name": "欣興",
+            "role": "ABF 載板與 HDI",
+            "details": "供應 Apple M 系列晶片高階 ABF 載板與 iPhone 高密度電路板。"
+          },
+          {
+            "code": "4958",
+            "name": "臻鼎-KY",
+            "role": "全球 PCB 與軟板龍頭",
+            "details": "iPhone 多層軟板、天線軟板與超薄電路板最大供應商。"
+          },
+          {
+            "code": "2313",
+            "name": "華通",
+            "role": "高階 HDI 軟硬結合板",
+            "details": "iPhone 主機板高階 HDI 與衛星天線板核心供應商。"
+          },
+          {
+            "code": "2354",
+            "name": "鴻準",
+            "role": "金屬機殼製造",
+            "details": "iPhone 鈦金屬與鋁合金高階邊框機殼製造代工。"
+          }
+        ],
+        "downstream": [
+          {
+            "code": "2317",
+            "name": "鴻海",
+            "role": "iPhone 整機主力組裝",
+            "details": "iPhone Pro 高階旗艦機種主力組裝代工廠，掌握全球最大組裝份額。"
+          },
+          {
+            "code": "4938",
+            "name": "和碩",
+            "role": "iPhone 組裝代工",
+            "details": "供應標準版 iPhone 與穿戴裝置組裝。"
+          },
+          {
+            "code": "2382",
+            "name": "廣達",
+            "role": "MacBook / Apple Watch",
+            "details": "MacBook 筆記型電腦與穿戴裝置主要組裝夥伴。"
+          }
+        ]
+      }
+    },
+    "tesla": {
+      "ticker": "TSLA",
+      "name": "Tesla, Inc.",
+      "chinese_name": "特斯拉 (全球電動車 / FSD 自駕 / 人形機器人巨頭)",
+      "market": "NASDAQ",
+      "sector": "電動車 / 自駕 AI / Optimus 人形機器人",
+      "description": "全球智慧出行與人形機器人先驅，引領電動車動力系統、4680 電池、FSD 自駕運算與 Optimus 機器人靈巧關節供應鏈。",
+      "catalysts": [
+        "Robotaxi 無人計程車商業化與 Cybercab 量產推進",
+        "Optimus 人形機器人量產試行，推升減速機、行星滾柱絲槓與關節致動器需求",
+        "儲能系統 (Megapack) 出貨量翻倍增長"
+      ],
+      "supply_chain": {
+        "upstream": [
+          {
+            "code": "3665",
+            "name": "貿聯-KY",
+            "role": "高壓線束 / 連接器",
+            "details": "Tesla 創業初期第一家車用電池高壓線束認證供應商，擴展至儲能與伺服器連接線。"
+          },
+          {
+            "code": "3019",
+            "name": "亞光",
+            "role": "車載鏡頭",
+            "details": "Tesla 視覺自駕車載鏡頭核心供應商，具備非球面玻璃鏡片製造優勢。"
+          },
+          {
+            "code": "2454",
+            "name": "聯發科",
+            "role": "智慧座艙晶片",
+            "details": "推進與輝達合作之車用語音運算與智慧座艙 SoC。"
+          }
+        ],
+        "midstream": [
+          {
+            "code": "1536",
+            "name": "和大",
+            "role": "減速齒輪箱箱體",
+            "details": "Tesla 減速機構齒輪箱主力供應商，進一步研發機器人旋轉關節零組件。"
+          },
+          {
+            "code": "2308",
+            "name": "台達電",
+            "role": "動力系統與雙向充電樁",
+            "details": "供應車用馬達逆變器 (Inverter)、DC-DC 轉換器與高功率充電樁。"
+          },
+          {
+            "code": "5243",
+            "name": "乙盛-KY",
+            "role": "車體大型金屬沖壓件",
+            "details": "鴻海集團旗下機構件廠，供應 Tesla 墨西哥與美系超級工廠車身鈑金件。"
+          }
+        ],
+        "downstream": [
+          {
+            "code": "2359",
+            "name": "所羅門",
+            "role": "機器人視覺 / AI 演算法",
+            "details": "NVIDIA 機器人平台夥伴，專注 3D 視覺辨識與機器人自主導引。"
+          },
+          {
+            "code": "2049",
+            "name": "上銀",
+            "role": "滾珠螺桿與減速機",
+            "details": "人形機器人關節核心傳動元件（滾珠螺桿、諧波減速機）主力研發製造廠。"
+          },
+          {
+            "code": "1590",
+            "name": "亞德客-KY",
+            "role": "氣動與線性滑軌元件",
+            "details": "自動化與機器人產線精密線性導軌零件龍頭。"
+          }
+        ]
+      }
+    }
+  },
+  "concept_chains": {
+    "cpo_optical": {
+      "title": "光通訊 ＆ CPO 共同封裝光學產業鏈",
+      "badge": "AI 傳輸高速光互連",
+      "desc": "隨著 AI 運算速率突破 800G 邁向 1.6T，傳統銅線受限於物理衰減與功耗，必須改由光訊號傳輸。CPO (Co-Packaged Optics) 將光學引擎直接封裝在交換器 ASIC 旁，為終極解決方案。",
+      "upstream": {
+        "title": "【上游：磊晶材料與光學晶片】",
+        "desc": "磷化銦 (InP) 磊晶片、砷化鎵 (GaAs)、連續波雷射 (CW Laser) 光源材料",
+        "stocks": [
+          { "code": "3081", "name": "聯亞", "role": "InP 磊晶龍頭 / CW 雷射核心材料" },
+          { "code": "2455", "name": "全新", "role": "光接收/發射化合物磊晶片" },
+          { "code": "4971", "name": "IET-KY", "role": "MBE 分子束磊晶 / InP 感測元件" }
+        ]
+      },
+      "midstream": {
+        "title": "【中游：晶圓製造與光電代工】",
+        "desc": "化合物半導體晶圓代工製造、高速光發射 (EML) 與接收端 (PD) 晶片製程",
+        "stocks": [
+          { "code": "3105", "name": "穩懋", "role": "全球化合物代工龍頭 / Lumentum 夥伴" },
+          { "code": "8086", "name": "宏捷科", "role": "GaAs / InP 晶圓代工製造" },
+          { "code": "2330", "name": "台積電", "role": "COUPE 矽光子整合封裝平台" }
+        ]
+      },
+      "downstream": {
+        "title": "【下游：模組封裝、CPO 連接與光被動件】",
+        "desc": "雷射封裝 (COS)、光收發模組、光纖陣列 (FAU)、CPO 系統級封裝、光被動連接器",
+        "stocks": [
+          { "code": "3450", "name": "聯鈞", "role": "800G AOC / 雷射模組封裝" },
+          { "code": "3363", "name": "上詮", "role": "光纖陣列 (FAU) / 台積電 CPO 夥伴" },
+          { "code": "6442", "name": "光聖", "role": "北美 CSP 資料中心光被動跳接線" },
+          { "code": "4979", "name": "華星光", "role": "400G/800G 高速光收發模組" },
+          { "code": "6451", "name": "訊芯-KY", "role": "CPO 光學引擎 SiP 封測代工" },
+          { "code": "4977", "name": "眾達-KY", "role": "博通 CPO 外接光源模組合作夥伴" },
+          { "code": "3163", "name": "波若威", "role": "WDM 分波多工 / 高階光纖套件" }
+        ]
+      }
+    },
+    "cowos_packaging": {
+      "title": "CoWoS 先進封裝 ＆ 半導體製程設備鏈",
+      "badge": "台積電 AI 晶片產能瓶頸",
+      "desc": "AI 晶片 (GPU、HBM、ASIC) 必須透過中介層 (Interposer) 進行 2.5D/3D 異質整合。台積電 CoWoS 產能呈現倍數擴充，帶動濕製程、自動化貼合與檢測設備爆發。",
+      "upstream": {
+        "title": "【上游：特化材料、晶圓載板與氣體】",
+        "desc": "ABF 載板、光阻液、蝕刻特用化學品、研磨液 (CMP)",
+        "stocks": [
+          { "code": "3037", "name": "欣興", "role": "高階 ABF 載板龍頭" },
+          { "code": "3189", "name": "景碩", "role": "ABF / BT 晶片載板" },
+          { "code": "1773", "name": "勝一", "role": "高純度半導體溶劑" },
+          { "code": "4755", "name": "三福化", "role": "顯影劑回收與先進封裝剝離劑" }
+        ]
+      },
+      "midstream": {
+        "title": "【中游：CoWoS 設備、濕製程與檢測】",
+        "desc": "單晶圓濕法清洗、烘烤設備、自動點膠、晶圓貼合與外觀 AOI 檢測",
+        "stocks": [
+          { "code": "3131", "name": "弘塑", "role": "單晶圓濕製程清洗設備龍頭" },
+          { "code": "3583", "name": "辛耘", "role": "濕製程設備與再生晶圓" },
+          { "code": "6187", "name": "萬潤", "role": "點膠機 / 自動散熱片貼合機" },
+          { "code": "6640", "name": "均華", "role": "精密晶粒挑選機 (Die Sorter)" },
+          { "code": "5443", "name": "均豪", "role": "晶圓 AOI 檢測設備與研磨機" },
+          { "code": "2467", "name": "志聖", "role": "先進封裝真空壓膜機與熱烘烤" }
+        ]
+      },
+      "downstream": {
+        "title": "【下游：晶圓代工與先進封測代工】",
+        "desc": "CoWoS 完整封裝整合、晶圓代工廠、專業封測 (OSAT)",
+        "stocks": [
+          { "code": "2330", "name": "台積電", "role": "CoWoS-S/L/R 先進封裝霸主" },
+          { "code": "3711", "name": "日月光投控", "role": "FoCoS / 2.5D 先進封裝代工" },
+          { "code": "2449", "name": "京元電子", "role": "AI 晶片高階晶圓預燒測試 (Burn-in)" }
+        ]
+      }
+    },
+    "ai_server_cooling": {
+      "title": "AI 伺服器整機 ＆ 水冷散熱系統鏈",
+      "badge": "GB200 算力機架核心",
+      "desc": "高算力伺服器單一機架 TDP 突破 100kW，傳統風冷已達極限，全面過渡至水冷 (Liquid Cooling)。整機 ODM 整合電源、冷卻歧管與高承重導軌。",
+      "upstream": {
+        "title": "【上游：水冷板、散熱導管與結構組件】",
+        "desc": "導熱材料、均熱板 (VC)、水冷板 (Cold Plate)、伺服器機殼與導軌",
+        "stocks": [
+          { "code": "2059", "name": "川湖", "role": "AI 伺服器高耐重滑軌全球龍頭" },
+          { "code": "8996", "name": "高力", "role": "板式熱交換器 / 水冷分歧管 (Manifold)" },
+          { "code": "6117", "name": "迎廣", "role": "高階 AI 伺服器機殼與機櫃" },
+          { "code": "8210", "name": "勤誠", "role": "全球伺服器機殼與機構件龍頭" },
+          { "code": "2354", "name": "鴻準", "role": "精密金屬沖壓與散熱機構件" }
+        ]
+      },
+      "midstream": {
+        "title": "【中游：水冷系統、冷卻分配單元 (CDU) 與電源】",
+        "desc": "水冷散熱模組製造、CDU 液冷控制分配器、5500W+ 高功率伺服器電源",
+        "stocks": [
+          { "code": "3017", "name": "奇鋐", "role": "水冷板與 3D VC 散熱模組主力" },
+          { "code": "3324", "name": "雙鴻", "role": "水冷散熱全方位方案 (CDU/水冷板)" },
+          { "code": "3653", "name": "健策", "role": "均熱片 (Heat Spreader) 龍頭" },
+          { "code": "2308", "name": "台達電", "role": "超高功率電源架構與直流配電" },
+          { "code": "2301", "name": "光寶科", "role": "伺服器專用電源供應器 (PSU)" }
+        ]
+      },
+      "downstream": {
+        "title": "【下游：AI 伺服器整機 ODM / Hyperscaler 出貨】",
+        "desc": "整機系統組裝、資料中心整櫃出貨 (L10/L11/L12)、全球雲端大廠交付",
+        "stocks": [
+          { "code": "2382", "name": "廣達", "role": "旗下雲達為 GB200 NVL72 主力出貨廠" },
+          { "code": "2317", "name": "鴻海", "role": "全球最大電子代工，垂直整合整機櫃" },
+          { "code": "6669", "name": "緯穎", "role": "美系四大 CSP 純伺服器 ODM 大廠" },
+          { "code": "3231", "name": "緯創", "role": "AI 晶片運算基板 (Compute Board) 製造" },
+          { "code": "2356", "name": "英業達", "role": "美系與中系伺服器主機板與整機代工" },
+          { "code": "2376", "name": "技嘉", "role": "高效能 AI 運算伺服器與邊緣運算" }
+        ]
+      }
+    }
+  }
+}

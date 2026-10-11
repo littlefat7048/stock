@@ -10,10 +10,12 @@ import streamlit as st
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
 WATCHLIST_FILE = os.path.join(DATA_DIR, 'watchlist.json')
 CONCEPT_FILE = os.path.join(DATA_DIR, 'concept_stocks.json')
+SUPPLY_CHAIN_FILE = os.path.join(DATA_DIR, 'supply_chain_map.json')
 TW_STOCKS_FILE = os.path.join(DATA_DIR, 'tw_stocks_info.json')
 
 # 快取台股基本資料字典
 _TW_STOCKS_CACHE = None
+_SUPPLY_CHAIN_CACHE = None
 
 def _load_tw_stocks_dict():
     global _TW_STOCKS_CACHE
@@ -237,6 +239,80 @@ def load_concept_data():
         except Exception:
             return {}
     return {}
+
+
+def load_supply_chain_data():
+    """載入美股巨頭對標與熱門題材上中下游地圖資料庫"""
+    global _SUPPLY_CHAIN_CACHE
+    if _SUPPLY_CHAIN_CACHE is not None:
+        return _SUPPLY_CHAIN_CACHE
+    if os.path.exists(SUPPLY_CHAIN_FILE):
+        try:
+            with open(SUPPLY_CHAIN_FILE, 'r', encoding='utf-8') as f:
+                _SUPPLY_CHAIN_CACHE = json.load(f)
+                return _SUPPLY_CHAIN_CACHE
+        except Exception:
+            pass
+    return {'global_giants': {}, 'concept_chains': {}}
+
+
+def get_stock_supply_chain_matches(code: str) -> dict:
+    """
+    查詢指定股票代號是否出現在任何「美股巨頭供應鏈」或「核心題材上中下游鏈」中
+    回傳：{
+        'giants': [{'giant_key', 'ticker', 'name', 'chinese_name', 'tier', 'role', 'details', 'catalysts', 'full_chain'}],
+        'concept_chains': [{'chain_key', 'title', 'badge', 'tier', 'role', 'desc', 'full_chain'}]
+    }
+    """
+    code = str(code).strip()
+    data = load_supply_chain_data()
+    matched_giants = []
+    matched_chains = []
+
+    # 1. 搜尋美股巨頭
+    for gkey, ginfo in data.get('global_giants', {}).items():
+        chain = ginfo.get('supply_chain', {})
+        for tier_name, tier_label in [('upstream', '上游關鍵零組件/材料'), ('midstream', '中游製程與模組'), ('downstream', '下游封裝/系統整合/終端')]:
+            for item in chain.get(tier_name, []):
+                if str(item.get('code')).strip() == code:
+                    matched_giants.append({
+                        'giant_key': gkey,
+                        'ticker': ginfo.get('ticker', ''),
+                        'name': ginfo.get('name', ''),
+                        'chinese_name': ginfo.get('chinese_name', ''),
+                        'sector': ginfo.get('sector', ''),
+                        'tier': tier_name,
+                        'tier_label': tier_label,
+                        'role': item.get('role', ''),
+                        'details': item.get('details', ''),
+                        'catalysts': ginfo.get('catalysts', []),
+                        'full_chain': chain
+                    })
+                    break
+
+    # 2. 搜尋核心題材上中下游鏈
+    for ckey, cinfo in data.get('concept_chains', {}).items():
+        for tier_name, tier_label in [('upstream', '上游材料/組件'), ('midstream', '中游製造/設備'), ('downstream', '下游模組/組裝')]:
+            tier_obj = cinfo.get(tier_name, {})
+            stocks = tier_obj.get('stocks', [])
+            for item in stocks:
+                if str(item.get('code')).strip() == code:
+                    matched_chains.append({
+                        'chain_key': ckey,
+                        'title': cinfo.get('title', ''),
+                        'badge': cinfo.get('badge', ''),
+                        'desc': cinfo.get('desc', ''),
+                        'tier': tier_name,
+                        'tier_label': tier_label,
+                        'role': item.get('role', ''),
+                        'full_chain': cinfo
+                    })
+                    break
+
+    return {
+        'giants': matched_giants,
+        'concept_chains': matched_chains
+    }
 
 
 def get_concept_tags_for_stock(code: str, concept_data: dict = None) -> list:
@@ -878,5 +954,71 @@ def render_quote_table_html(rows: list) -> str:
 
     html_parts.append('</div>')
     return "".join(html_parts)
+
+
+def render_supply_chain_stock_card(code: str, name: str, role: str, details: str = "", quote: dict = None, is_current: bool = False) -> str:
+    """
+    產生供應鏈股票卡片 HTML（支援報價、漲跌色彩、角色、細節說明、當前個股高亮與點擊跳轉）
+    """
+    code = str(code).strip()
+    name = str(name).strip() if name else code
+    role = str(role).strip() if role else ""
+    details = str(details).strip() if details else ""
+
+    q = quote or {}
+    close_p = float(q.get('close', 0.0))
+    chg = float(q.get('change', 0.0))
+    pct = float(q.get('pct_change', 0.0))
+
+    if close_p > 0:
+        price_str = f"NT$ {close_p:,.2f}"
+        if chg > 0:
+            p_color = "#ff3b5c"
+            chg_str = f"+{chg:.2f} ▲{abs(pct):.2f}%"
+        elif chg < 0:
+            p_color = "#00e676"
+            chg_str = f"{chg:.2f} ▼{abs(pct):.2f}%"
+        else:
+            p_color = "#94A3B8"
+            chg_str = "0.00 0.00%"
+    else:
+        price_str = ""
+        p_color = "#94A3B8"
+        chg_str = ""
+
+    border_color = "#00D4AA" if is_current else "#1E293B"
+    bg_color = "linear-gradient(135deg, #13272C 0%, #0C1A20 100%)" if is_current else "#0F1420"
+    box_shadow = "box-shadow: 0 0 12px rgba(0,212,170,0.25);" if is_current else ""
+    current_badge = '<span style="background:#00D4AA; color:#0A0F1D; font-size:11px; font-weight:800; padding:1px 6px; border-radius:4px; margin-left:6px;">📍 當前個股</span>' if is_current else ''
+
+    details_html = f'<div style="color:#94A3B8; font-size:12.5px; margin-top:4px; line-height:1.45; border-top:1px dashed #222C3D; padding-top:4px;">{details}</div>' if details else ''
+
+    quote_html = (
+        f'<div style="text-align:right;">'
+        f'<div style="color:{p_color}; font-size:16px; font-weight:bold; line-height:1.2;">{price_str}</div>'
+        f'<div style="color:{p_color}; font-size:12px; font-weight:600; margin-top:2px;">{chg_str}</div>'
+        f'</div>'
+    ) if price_str else ''
+
+    return (
+        f'<a href="/?stock={code}" target="_self" style="text-decoration:none !important; display:block; margin-bottom:8px;">'
+        f'<div style="background:{bg_color}; border:1.5px solid {border_color}; border-radius:9px; padding:10px 12px; {box_shadow} transition:all 0.15s ease;">'
+        f'<div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">'
+        f'<div>'
+        f'<div style="display:flex; align-items:center;">'
+        f'<span style="color:#FFFFFF; font-size:16px; font-weight:bold;">{name}</span>'
+        f'<span style="color:#00D4AA; font-size:13px; font-weight:bold; margin-left:6px;">{code}</span>'
+        f'{current_badge}'
+        f'</div>'
+        f'<div style="color:#CBD5E1; font-size:13px; font-weight:500; margin-top:3px;">'
+        f'<span style="color:#F59E0B; font-weight:bold;">🏷️</span> {role}'
+        f'</div>'
+        f'</div>'
+        f'{quote_html}'
+        f'</div>'
+        f'{details_html}'
+        f'</div>'
+        f'</a>'
+    )
 
 

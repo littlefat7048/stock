@@ -24,6 +24,11 @@ if 'c_sub' in st.query_params and st.query_params['c_sub']:
     del st.query_params['c_sub']
     st.switch_page("pages/2_🏷️_概念股.py")
 
+if 'c_tab' in st.query_params and st.query_params['c_tab']:
+    st.session_state['selected_concept_tab'] = str(st.query_params['c_tab']).strip()
+    del st.query_params['c_tab']
+    st.switch_page("pages/2_🏷️_概念股.py")
+
 if 'nav' in st.query_params and st.query_params['nav']:
     nav_target = str(st.query_params['nav']).strip()
     del st.query_params['nav']

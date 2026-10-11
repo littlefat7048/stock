@@ -52,7 +52,8 @@ from utils.helpers import (
     resolve_stock_query, get_tw_stock_chinese_info, get_peer_stocks,
     format_price, color_for_change, load_concept_data,
     get_concept_tags_for_stock, get_concept_details_for_stock,
-    load_watchlist, save_watchlist, get_searchable_stock_options
+    load_watchlist, save_watchlist, get_searchable_stock_options,
+    get_stock_supply_chain_matches, render_supply_chain_stock_card
 )
 from utils.charts import (
     create_candlestick_chart, create_macd_chart, create_kd_chart,
@@ -1336,7 +1337,7 @@ if stock_code:
 
     # ── Tab 6：🏭 產業生態與同業比較 ───────────────────────
     with tab6:
-        st.subheader(f"🏭 {stock_name} ({stock_code}) 產業鏈定位與同業競爭公司")
+        st.subheader(f"🏭 {stock_name} ({stock_code}) 產業鏈定位、供應鏈地圖與同業競爭")
 
         rel_inds_str = " / ".join(biz_analysis.get('related_industries') or []) or sector_str
         st.markdown(
@@ -1348,7 +1349,98 @@ if stock_code:
             unsafe_allow_html=True
         )
 
-        # 1. 概念股供應鏈角色與夥伴
+        # ── 1. 核心產業鏈上中下游地圖 ＆ 美股科技巨頭對標 ──────
+        sc_matches = get_stock_supply_chain_matches(stock_code)
+        matched_giants = sc_matches.get('giants', [])
+        matched_chains = sc_matches.get('concept_chains', [])
+
+        if matched_giants or matched_chains:
+            st.markdown("#### ⛓️ 產業上下游生態鏈圖譜 ＆ 國際巨頭對標")
+
+            # 1-A. 若對標美股科技巨頭（如 Lumentum, Nvidia, Broadcom）
+            for g_item in matched_giants:
+                g_ticker = g_item['ticker']
+                g_name = g_item['chinese_name']
+                t_label = g_item['tier_label']
+                role = g_item['role']
+                details = g_item['details']
+                cats = g_item.get('catalysts', [])
+                cat_summary = " ｜ ".join(cats[:2]) if cats else ""
+                g_key = g_item.get('giant_key', '')
+
+                st.markdown(
+                    f"<div style='background:linear-gradient(135deg, #101B2B 0%, #0B1320 100%); border:1px solid #1E3A5F; border-left:5px solid #38BDF8; border-radius:10px; padding:12px 15px; margin-bottom:10px;'>"
+                    f"<div style='display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;'>"
+                    f"<span style='color:#38BDF8; font-size:18px; font-weight:bold;'>🇺🇸 美股對標巨頭：{g_name} ({g_ticker})</span>"
+                    f"<span style='background:#0284C7; color:#FFF; font-size:13px; font-weight:bold; padding:2px 8px; border-radius:10px;'>{t_label}</span>"
+                    f"</div>"
+                    f"<div style='color:#FFF; font-size:16.5px; font-weight:bold; margin-top:5px;'>"
+                    f"🎯 {stock_name} ({stock_code}) 核心合作定位：<span style='color:#00D4AA;'>{role}</span>"
+                    f"</div>"
+                    f"<div style='color:#CBD5E1; font-size:14.5px; margin-top:4px; line-height:1.5;'>{details}</div>"
+                    + (f"<div style='color:#F59E0B; font-size:13.5px; margin-top:5px; border-top:1px dashed #24354D; padding-top:4px;'>🔥 美股動能催化劑：{cat_summary}</div>" if cat_summary else "") +
+                    f"<div style='margin-top:6px; text-align:right;'><a href='/?c_tab=giants&giant={g_key}' target='_self' style='color:#38BDF8; font-size:13.5px; font-weight:bold; text-decoration:none;'>👉 查看完整 {g_ticker} 供應鏈地圖 ➔</a></div>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
+
+            # 1-B. 若所屬核心產業鏈（光通訊CPO、CoWoS、AI伺服器）
+            for c_match in matched_chains:
+                chain_info = c_match['full_chain']
+                up_stks = chain_info.get('upstream', {}).get('stocks', [])
+                mid_stks = chain_info.get('midstream', {}).get('stocks', [])
+                dn_stks = chain_info.get('downstream', {}).get('stocks', [])
+
+                st.markdown(
+                    f"<div style='background:#0C121D; border:1px solid #1E293B; border-radius:10px; padding:12px; margin-bottom:12px;'>"
+                    f"<div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;'>"
+                    f"<span style='color:#FFD700; font-size:17.5px; font-weight:bold;'>🌐 所屬產業鏈：{c_match['title']}</span>"
+                    f"<a href='/?c_tab=chains' target='_self' style='color:#38BDF8; font-size:13px; font-weight:bold; text-decoration:none;'>全景圖 ➔</a>"
+                    f"</div>"
+                    f"<div style='color:#94A3B8; font-size:13.5px; margin-bottom:8px;'>{c_match.get('desc', '')}</div>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
+
+                # 3 欄展示該產業鏈並高亮當前個股
+                c_up, c_mid, c_dn = st.columns(3)
+                with c_up:
+                    st.markdown(
+                        "<div style='background:#141C2B; padding:6px 10px; border-radius:6px; font-size:14px; font-weight:bold; color:#38BDF8; margin-bottom:6px;'>⬅️ 上游材料/組件</div>",
+                        unsafe_allow_html=True
+                    )
+                    for s in up_stks:
+                        is_curr = (s['code'] == stock_code)
+                        st.markdown(
+                            render_supply_chain_stock_card(s['code'], s['name'], s['role'], is_current=is_curr),
+                            unsafe_allow_html=True
+                        )
+
+                with c_mid:
+                    st.markdown(
+                        "<div style='background:#1F1926; padding:6px 10px; border-radius:6px; font-size:14px; font-weight:bold; color:#F59E0B; margin-bottom:6px;'>🎯 中游製造/代工</div>",
+                        unsafe_allow_html=True
+                    )
+                    for s in mid_stks:
+                        is_curr = (s['code'] == stock_code)
+                        st.markdown(
+                            render_supply_chain_stock_card(s['code'], s['name'], s['role'], is_current=is_curr),
+                            unsafe_allow_html=True
+                        )
+
+                with c_dn:
+                    st.markdown(
+                        "<div style='background:#12211C; padding:6px 10px; border-radius:6px; font-size:14px; font-weight:bold; color:#10B981; margin-bottom:6px;'>➡️ 下游模組/出海口</div>",
+                        unsafe_allow_html=True
+                    )
+                    for s in dn_stks:
+                        is_curr = (s['code'] == stock_code)
+                        st.markdown(
+                            render_supply_chain_stock_card(s['code'], s['name'], s['role'], is_current=is_curr),
+                            unsafe_allow_html=True
+                        )
+
+        # 2. 概念股供應鏈角色與夥伴
         if concept_details:
             st.markdown("#### 🔗 所屬熱門題材與供應鏈角色")
             for c_idx, citem in enumerate(concept_details):
@@ -1378,7 +1470,7 @@ if stock_code:
                                 st.session_state['target_stock'] = rs['code']
                                 st.rerun()
 
-        # 2. 同產業競爭/相關公司（自動從台股 3,149 檔資料庫比對）
+        # 3. 同產業競爭/相關公司（自動從台股 3,149 檔資料庫比對）
         peers = get_peer_stocks(stock_code, limit=12)
         if peers:
             st.markdown(f"#### 🏢 同分類（{info.get('official_sector', sector_str)}）其他上市櫃公司")
@@ -1395,7 +1487,7 @@ if stock_code:
                         st.rerun()
 
         st.divider()
-        # 3. AI 產生上下游與競爭對手報告
+        # 4. AI 產生上下游與競爭對手報告
         if st.button(f"🤖 請 Gemini 3.8 Flash 深度梳理「{stock_name} ({stock_code})」的上下游供應鏈與競爭對手", use_container_width=True):
             with st.spinner(f"正在分析 {stock_name} 的上下游產業鏈..."):
                 try:

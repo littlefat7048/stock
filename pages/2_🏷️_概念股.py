@@ -162,6 +162,7 @@ if view_mode == "🏷️ 熱門題材即時看盤":
                 }
 
     PRIORITY_CONCEPTS = [
+        ('FOPLP面板級封裝', 'FOPLP封裝'),
         ('玻璃基板', '玻璃基板'),
         ('光通訊CPO', '光通訊'),
         ('BBU備援電池', 'BBU電池'),
@@ -382,6 +383,7 @@ elif view_mode == "🌐 上中下游產業鏈地圖":
 
     chain_options = {
         'cpo_optical': '⚡ 光通訊 ＆ CPO 共同封裝光學產業鏈',
+        'foplp_packaging': '📦 FOPLP 扇出型面板級封裝 ＆ 玻璃基板鏈',
         'semiconductor_chemicals': '🧪 半導體特用化學 ＆ 先進材料產業鏈',
         'cowos_packaging': '🔬 CoWoS 先進封裝 ＆ 半導體製程設備鏈',
         'ai_server_cooling': '🖥️ AI 伺服器整機 ＆ 水冷供電機構鏈'

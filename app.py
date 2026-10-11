@@ -68,7 +68,7 @@ importlib.reload(utils.helpers)
 
 from modules.daily_report import (
     scrape_report, load_report_cache, save_report_cache,
-    parse_stock_codes, get_available_dates
+    parse_stock_codes, get_available_dates, get_latest_report_info_from_home
 )
 from modules.data_fetcher import get_twse_institutional_summary
 from utils.helpers import (
@@ -96,15 +96,25 @@ with st.sidebar:
                 break
         d -= timedelta(days=1)
 
-    # 智慧自動同步：若最新工作日尚未快取，主動向線上探測是否有新報告發布
-    latest_workday = date_options[0] if date_options else None
-    if latest_workday and latest_workday not in available:
-        try:
-            latest_res = scrape_report(latest_workday)
-            if latest_res.get('status') == 'success':
-                available = get_available_dates()
-        except Exception:
-            pass
+    # 智慧自動同步：
+    # 1. 優先向日報首頁探測最新官方發布之完整報告（如 20261008）
+    try:
+        pub_latest_date, _ = get_latest_report_info_from_home()
+        if pub_latest_date and pub_latest_date not in available:
+            scrape_report(pub_latest_date)
+            available = get_available_dates()
+    except Exception:
+        pass
+
+    # 2. 自動回溯探測最近 3 個工作日，確保即使遇國慶連假亦絕不漏接報告
+    for d_chk in date_options[:3]:
+        if d_chk not in available:
+            try:
+                chk_res = scrape_report(d_chk)
+                if chk_res.get('status') == 'success':
+                    available = get_available_dates()
+            except Exception:
+                pass
 
     # 確保已快取的日期在選項內
     for av in available:

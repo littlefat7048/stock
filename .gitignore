@@ -15,8 +15,7 @@ data/cache/financials_*.json
 data/cache/chip_*.json
 data/cache/ai_analysis_*.json
 data/cache/batch_intraday_*.json
-data/cache/screener_results_*.json
+# data/cache/screener_results_*.json 保留強勢雷達快取供雲端秒開
 data/cache/day_trading_*.json
 data/cache/broker_*.json
-data/cache/market_*.json
-data/cache/report_*.json
+# data/cache/report_*.json 保留盤後報告快取供雲端直接讀取

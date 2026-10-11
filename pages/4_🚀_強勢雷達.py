@@ -14,7 +14,9 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from utils.helpers import get_common_css, get_top_nav_html, render_quote_table_html, inject_pwa_and_ux_enhancements
-from modules.screener import scan_market_signals, get_concept_rotation_rankings
+from modules.screener import (
+    scan_market_signals, get_concept_rotation_rankings, get_concept_consecutive_rankings
+)
 
 st.set_page_config(page_title='台股智慧策略推薦清單', page_icon='🚀', layout='wide')
 st.markdown(get_common_css(), unsafe_allow_html=True)
@@ -139,15 +141,32 @@ concept_rankings = screener_data.get('concept_rankings', [])
 if not concept_rankings:
     concept_rankings = get_concept_rotation_rankings(screener_data)
 
+strong_breakouts = screener_data.get('strong_breakouts', [])
+strong_continuing = screener_data.get('strong_continuing', [])
+strong_initial = screener_data.get('strong_initial', [])
+concept_consec_rankings = screener_data.get('concept_consecutive_rankings', [])
+if not concept_consec_rankings:
+    concept_consec_rankings = get_concept_consecutive_rankings(screener_data)
+
 total_scanned  = screener_data.get('total_scanned', 0)
+
+# 冠軍族群資訊
+top_consec_name = concept_consec_rankings[0]['concept_name'] if concept_consec_rankings else "運算中"
+top_consec_days = concept_consec_rankings[0]['consec_days'] if concept_consec_rankings else 0
+top_consec_pct  = concept_consec_rankings[0]['cum_pct'] if concept_consec_rankings else 0.0
 
 # ── 頂部 5 大核心數據指標卡 ────────────────────────────────
 st.markdown(
     f"<div style='display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:8px; margin:10px 0 14px 0;'>"
-    f"<div style='background:#181A26; border-left:4px solid #FFD700; border-radius:8px; padding:10px 12px;'>"
-    f"<div style='color:#94A3B8; font-size:13px;'>🏆 今日精選推薦</div>"
-    f"<div style='font-size:22px; font-weight:800; color:#FFD700;'>{len(top_recs)} <span style='font-size:13px; font-weight:normal;'>檔</span></div>"
-    f"<div style='color:#888; font-size:12px;'>籌碼技術雙共振</div>"
+    f"<div style='background:#181A26; border-left:4px solid #FF4444; border-radius:8px; padding:10px 12px;'>"
+    f"<div style='color:#94A3B8; font-size:13px;'>🔥 族群連漲冠軍</div>"
+    f"<div style='font-size:18px; font-weight:800; color:#FF5252; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;'>{top_consec_name}</div>"
+    f"<div style='color:#888; font-size:12px;'>連漲 {top_consec_days} 天 ({top_consec_pct:+}%)</div>"
+    f"</div>"
+    f"<div style='background:#181A26; border-left:4px solid #00D4AA; border-radius:8px; padding:10px 12px;'>"
+    f"<div style='color:#94A3B8; font-size:13px;'>⚡ 真強勢突破</div>"
+    f"<div style='font-size:22px; font-weight:800; color:#00D4AA;'>{len(strong_breakouts)} <span style='font-size:13px; font-weight:normal;'>檔</span></div>"
+    f"<div style='color:#888; font-size:12px;'>主升 {len(strong_continuing)} ｜ 初升 {len(strong_initial)}</div>"
     f"</div>"
     f"<div style='background:#181A26; border-left:4px solid #F59E0B; border-radius:8px; padding:10px 12px;'>"
     f"<div style='color:#94A3B8; font-size:13px;'>👑 投信作帳認養</div>"
@@ -159,26 +178,22 @@ st.markdown(
     f"<div style='font-size:22px; font-weight:800; color:#60A5FA;'>{len(dual_bull_picks)} <span style='font-size:13px; font-weight:normal;'>檔</span></div>"
     f"<div style='color:#888; font-size:12px;'>外資投信聯手</div>"
     f"</div>"
-    f"<div style='background:#181A26; border-left:4px solid #FF3B5C; border-radius:8px; padding:10px 12px;'>"
-    f"<div style='color:#94A3B8; font-size:13px;'>🔥 爆量突破長紅</div>"
-    f"<div style='font-size:22px; font-weight:800; color:#FF3B5C;'>{len(vol_surge_list)} <span style='font-size:13px; font-weight:normal;'>檔</span></div>"
-    f"<div style='color:#888; font-size:12px;'>量增 1.8x 以上</div>"
-    f"</div>"
-    f"<div style='background:#181A26; border-left:4px solid #10B981; border-radius:8px; padding:10px 12px;'>"
-    f"<div style='color:#94A3B8; font-size:13px;'>🏭 熱門強勢族群</div>"
-    f"<div style='font-size:22px; font-weight:800; color:#34D399;'>{len(concept_rankings)} <span style='font-size:13px; font-weight:normal;'>群</span></div>"
-    f"<div style='color:#888; font-size:12px;'>資金輪動領頭羊</div>"
+    f"<div style='background:#181A26; border-left:4px solid #FFD700; border-radius:8px; padding:10px 12px;'>"
+    f"<div style='color:#94A3B8; font-size:13px;'>🏆 今日精選推薦</div>"
+    f"<div style='font-size:22px; font-weight:800; color:#FFD700;'>{len(top_recs)} <span style='font-size:13px; font-weight:normal;'>檔</span></div>"
+    f"<div style='color:#888; font-size:12px;'>籌碼技術雙共振</div>"
     f"</div>"
     f"</div>",
     unsafe_allow_html=True
 )
 
-# ── 6 大核心策略頁籤 ──────────────────────────────────────────
-t_rec, t_chip, t_tech, t_concept, t_steady, t_guide = st.tabs([
+# ── 7 大核心策略頁籤 ──────────────────────────────────────────
+t_consec, t_strong, t_rec, t_chip, t_tech, t_steady, t_guide = st.tabs([
+    f"🔥 族群連漲總榜 ({len(concept_consec_rankings)})",
+    f"⚡ 真強勢突破 ({len(strong_breakouts)})",
     f"🏆 今日精選推薦 ({len(top_recs)})",
     f"🏛️ 籌碼面策略 ({len(trust_picks) + len(foreign_picks)})",
-    f"🔥 技術面策略 ({len(vol_surge_list)})",
-    f"🏭 熱門族群領頭羊 ({len(concept_rankings)})",
+    f"📈 技術面策略 ({len(vol_surge_list)})",
     f"💎 穩健多頭起漲 ({len(steady_ma_picks)})",
     f"⚠️ 隔日沖避雷指南"
 ])
@@ -231,7 +246,203 @@ def _render_screener_table_common(items_list, badge_gen_func, key_suffix=""):
 
 
 # ══════════════════════════════════════════════════════════
-# Tab 1: 🏆 今日精選推薦總榜 (Top Picks)
+# Tab 1: 🔥 熱門族群連漲總榜 (由多到少排序)
+# ══════════════════════════════════════════════════════════
+with t_consec:
+    st.markdown(
+        "<div style='background:#181A26; border-left:4px solid #FF4444; border-radius:8px; padding:12px 16px; margin-bottom:12px; font-size:15px; color:#F5F5F4;'>"
+        "🔥 <b>全市場熱門族群連漲動能總榜：</b>"
+        "大數據自動追蹤全台股 75 個概念族群目前<b>【連續上漲天數（由多到少排序）】</b>與<b>【累積總漲幅】</b>！"
+        "一眼揪出當前市場大資金連續抱團的主流題材。點擊任一族群卡片即可<b>展開查看全體成分股</b>（包含 👑 領頭羊、🏛️ 法人中軍、💎 穩健起漲股）！"
+        "</div>",
+        unsafe_allow_html=True
+    )
+
+    c_c1, c_c2, c_c3 = st.columns([2.5, 1.8, 1.5])
+    with c_c1:
+        c_kw = st.text_input("🔍 搜尋族群或股票", placeholder="輸入族群（如 CoWoS、PCB、散熱）或股名/代號", key="consec_kw")
+    with c_c2:
+        c_sort = st.selectbox("排序方式", ["🔥 連漲天數由多到少", "📈 累積總漲幅由大到小", "⚡ 今日漲幅由大到小"], key="consec_sort")
+    with c_c3:
+        c_min_days = st.selectbox("連漲門檻", [0, 1, 3, 5], format_func=lambda x: "全部族群" if x == 0 else f"連漲 ≥ {x} 天", key="consec_min_days")
+
+    cur_consec = list(concept_consec_rankings)
+    if c_min_days > 0:
+        cur_consec = [x for x in cur_consec if x.get('consec_days', 0) >= c_min_days]
+
+    if c_kw and c_kw.strip():
+        ck_clean = c_kw.strip().lower()
+        cur_consec = [
+            x for x in cur_consec
+            if ck_clean in str(x.get('concept_name', '')).lower()
+            or ck_clean in str(x.get('big_category', '')).lower()
+            or any(ck_clean in str(s.get('name', '')).lower() or ck_clean in str(s.get('code', '')) for s in x.get('stocks', []))
+        ]
+
+    if c_sort == "📈 累積總漲幅由大到小":
+        cur_consec.sort(key=lambda x: x.get('cum_pct', 0), reverse=True)
+    elif c_sort == "⚡ 今日漲幅由大到小":
+        cur_consec.sort(key=lambda x: x.get('today_avg_pct', 0), reverse=True)
+    else:
+        cur_consec.sort(key=lambda x: (x.get('consec_days', 0), x.get('cum_pct', 0), x.get('today_avg_pct', 0)), reverse=True)
+
+    st.caption(f"共符合 **{len(cur_consec)}** 個概念族群")
+
+    if not cur_consec:
+        st.info("暫無符合條件的族群。")
+    else:
+        for idx, citem in enumerate(cur_consec):
+            cdays = citem['consec_days']
+            c_pct = citem['cum_pct']
+            t_pct = citem['today_avg_pct']
+            t_cnt = citem['total_count']
+            u_cnt = citem['up_count']
+            u_ratio = citem['up_ratio']
+            leader = citem.get('leader')
+            inst_l = citem.get('inst_leader')
+            cname = citem['concept_name']
+            bcat = citem['big_category']
+
+            if cdays >= 5:
+                badge_style = "background:rgba(239,68,68,0.2); border:1px solid #EF4444; color:#FF5252;"
+                icon_tag = "🔥"
+            elif cdays >= 3:
+                badge_style = "background:rgba(245,158,11,0.2); border:1px solid #F59E0B; color:#FBBF24;"
+                icon_tag = "⚡"
+            elif cdays >= 1:
+                badge_style = "background:rgba(16,185,129,0.2); border:1px solid #10B981; color:#34D399;"
+                icon_tag = "🌱"
+            else:
+                badge_style = "background:#1E2433; border:1px solid #333F54; color:#94A3B8;"
+                icon_tag = "⚪"
+
+            flame_badge = f"<span style='{badge_style} padding:3px 10px; border-radius:12px; font-weight:800; font-size:14px;'>{icon_tag} 連漲 {cdays} 天</span>"
+            t_color = "#EF4444" if t_pct > 0 else ("#10B981" if t_pct < 0 else "#CBD5E1")
+            c_color = "#EF4444" if c_pct > 0 else ("#10B981" if c_pct < 0 else "#CBD5E1")
+
+            leader_chip = ""
+            if leader:
+                l_code = leader['code']
+                l_name = leader['name']
+                l_pct = leader['pct_change']
+                l_col = "#EF4444" if l_pct > 0 else "#10B981"
+                leader_chip = f"👑 領頭羊：<b style='color:#FFFFFF;'>{l_code} {l_name}</b> <span style='color:{l_col}; font-weight:bold;'>{l_pct:+.2f}%</span>"
+
+            inst_chip = ""
+            if inst_l and inst_l.get('inst_total_lots', 0) > 0:
+                inst_chip = f"🏛️ 主力中軍：<b style='color:#FFFFFF;'>{inst_l['code']} {inst_l['name']}</b> <span style='color:#60A5FA; font-weight:bold;'>+{inst_l['inst_total_lots']:,.0f}張</span>"
+
+            summary_chips = " ｜ ".join([x for x in [leader_chip, inst_chip] if x])
+
+            exp_label = f"No.{idx+1}  {cname}  ({bcat})  ｜  連漲 {cdays} 天  ｜  累計 {c_pct:+}%  ｜  今日 {t_pct:+}%  ({u_cnt}/{t_cnt} 檔上漲)"
+
+            with st.expander(exp_label, expanded=(idx < 2)):
+                st.markdown(
+                    f"<div style='display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px; padding:8px 12px; background:#1C2333; border-radius:6px;'>"
+                    f"<div>{flame_badge} <span style='margin-left:10px; font-size:14px; color:#E2E8F0;'>累計漲幅 <b style='color:{c_color};'>{c_pct:+}%</b> ｜ 今日平均 <b style='color:{t_color};'>{t_pct:+}%</b> ｜ 上漲比例 <b style='color:#FFD700;'>{u_ratio}%</b></span></div>"
+                    f"<div style='font-size:13px; color:#94A3B8;'>{summary_chips}</div>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
+
+                # Render stock rows
+                stocks_list = citem.get('stocks', [])
+                s_rows = []
+                for s in stocks_list:
+                    s_code = s['code']
+                    s_name = s['name']
+                    s_role = s.get('role', '')
+
+                    if leader and s_code == leader['code']:
+                        role_badge = "👑 族群領頭羊"
+                    elif inst_l and s_code == inst_l['code'] and s.get('inst_total_lots', 0) > 0:
+                        role_badge = "🏛️ 主力中軍"
+                    elif s.get('is_steady_ma'):
+                        role_badge = "💎 穩健起漲"
+                    elif s.get('is_breakout_20d'):
+                        role_badge = "🚀 創20日新高"
+                    elif s_role:
+                        role_badge = s_role[:8]
+                    else:
+                        role_badge = "概念成分股"
+
+                    s_rows.append({
+                        'code': s_code,
+                        'name': s_name,
+                        'market_short': s.get('market_short', '市'),
+                        'role': role_badge,
+                        'open': s.get('close', 0.0),
+                        'high': s.get('close', 0.0),
+                        'low': s.get('close', 0.0),
+                        'close': s.get('close', 0.0),
+                        'prev_close': s.get('close', 0.0),
+                        'change': round(s.get('close', 0.0) * s.get('pct_change', 0.0) / 100.0, 2),
+                        'pct_change': s.get('pct_change', 0.0),
+                        'sparkline': s.get('sparkline', [])
+                    })
+
+                st.markdown(render_quote_table_html(s_rows), unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════
+# Tab 2: ⚡ 全市場真強勢突破榜 (初升發動 vs. 主升續噴)
+# ══════════════════════════════════════════════════════════
+with t_strong:
+    st.markdown(
+        "<div style='background:#181A26; border-left:4px solid #00D4AA; border-radius:8px; padding:12px 16px; margin-bottom:12px; font-size:15px; color:#F5F5F4;'>"
+        "⚡ <b>全市場真強勢突破說明：</b>"
+        "突破 20 日整理新高 ＋ 成交量放大 1.8x 以上 ＋ 漲幅 ≥ 4.0% 實體大長紅（收盤逼近最高點，無長上影線）＋ 三大法人買超鎖碼！"
+        "<b>不限題材庫、不限連漲天數</b>，精準鎖定全市場多頭火力最強的飆股！"
+        "</div>",
+        unsafe_allow_html=True
+    )
+
+    st_col1, st_col2, st_col3 = st.columns([3.2, 1.4, 1.4])
+    with st_col1:
+        phase_choice = st.radio(
+            "篩選分類",
+            [
+                f"全部強勢股 ({len(strong_breakouts)})",
+                f"🔥 主升續噴 ({len(strong_continuing)})",
+                f"🌱 初升發動 ({len(strong_initial)})"
+            ],
+            horizontal=True,
+            key="strong_phase_choice"
+        )
+    with st_col2:
+        st_sort = st.selectbox("排序依據", ["依今日漲幅最高", "依爆量倍數最大", "依法人買超最多"], key="st_sort")
+    with st_col3:
+        st_min_v = st.selectbox("最低成交量", [800, 1500, 3000], format_func=lambda x: f"成交量 ≥ {x:,} 張", key="st_min_v")
+
+    if "主升續噴" in phase_choice:
+        cur_strong = list(strong_continuing)
+    elif "初升發動" in phase_choice:
+        cur_strong = list(strong_initial)
+    else:
+        cur_strong = list(strong_breakouts)
+
+    cur_strong = [x for x in cur_strong if x.get('volume_lots', 0) >= st_min_v]
+
+    if st_sort == "依爆量倍數最大":
+        cur_strong.sort(key=lambda x: x.get('vol_ratio', 0), reverse=True)
+    elif st_sort == "依法人買超最多":
+        cur_strong.sort(key=lambda x: x.get('inst_total_lots', 0), reverse=True)
+    else:
+        cur_strong.sort(key=lambda x: x.get('pct_change', 0), reverse=True)
+
+    st.caption(f"共篩選出 **{len(cur_strong)}** 檔真強勢標的")
+    if not cur_strong:
+        st.info("目前無符合條件的強勢股。")
+    else:
+        _render_screener_table_common(
+            cur_strong,
+            lambda x: f"{x.get('breakout_phase_label', '強勢突破')} ｜ 爆量{x.get('vol_ratio', 1.0)}x",
+            key_suffix="strong_table"
+        )
+
+
+# ══════════════════════════════════════════════════════════
+# Tab 3: 🏆 今日精選推薦總榜 (Top Picks)
 # ══════════════════════════════════════════════════════════
 with t_rec:
     st.markdown(
@@ -391,69 +602,7 @@ with t_tech:
         )
 
 
-# ══════════════════════════════════════════════════════════
-# Tab 4: 🏭 熱門族群領頭羊
-# ══════════════════════════════════════════════════════════
-with t_concept:
-    st.markdown(
-        "<div style='background:#181A26; border-left:4px solid #10B981; border-radius:8px; padding:10px 14px; margin-bottom:10px; font-size:15px; color:#F5F5F4;'>"
-        "🏭 <b>熱門族群輪動說明：</b>"
-        "「做股票要買主流，買主流要買龍頭」。大數據即時統計全台股 50+ 個核心概念族群之<b>【平均漲跌幅】</b>與<b>【上漲家數比例】</b>，"
-        "自動找出今日資金最聚集的最強族群，並標記族群內的第 1 指標領頭羊！"
-        "</div>",
-        unsafe_allow_html=True
-    )
 
-    if not concept_rankings:
-        st.info("正在統計概念族群數據...")
-    else:
-        for cr in concept_rankings[:15]:
-            cname = cr['concept_name']
-            bname = cr['big_category']
-            avg_p = cr['avg_pct_change']
-            u_ratio = cr['up_ratio']
-            u_cnt = cr['up_count']
-            t_cnt = cr['total_count']
-            leader = cr.get('leader')
-
-            p_color = "#EF4444" if avg_p > 0 else ("#10B981" if avg_p < 0 else "#CBD5E1")
-            p_sign = "+" if avg_p > 0 else ""
-
-            leader_info_html = ""
-            if leader:
-                l_code = leader['code']
-                l_name = leader['name']
-                l_pct = leader['pct_change']
-                l_color = "#EF4444" if l_pct > 0 else "#10B981"
-                leader_info_html = (
-                    f"<div style='display:flex; align-items:center; gap:8px;'>"
-                    f"<span style='color:#94A3B8; font-size:13px;'>族群領頭羊：</span>"
-                    f"<a href='/?stock={l_code}' target='_blank' style='color:#FFFFFF; font-weight:bold; text-decoration:none; background:#1C202C; padding:3px 8px; border-radius:4px; border:1px solid #2D3342;'>"
-                    f"🏆 {l_code} {l_name} <span style='color:{l_color}; font-weight:bold;'>+{l_pct:.2f}%</span>"
-                    f"</a>"
-                    f"</div>"
-                )
-
-            row_html = (
-                f"<div class='concept-rank-row'>"
-                f"<div style='display:flex; align-items:center; gap:12px; flex-wrap:wrap;'>"
-                f"<div>"
-                f"<span style='font-size:16px; font-weight:bold; color:#FFFFFF;'>{cname}</span>"
-                f"<span style='font-size:12px; color:#94A3B8; background:#181A26; padding:1px 6px; border-radius:4px; margin-left:6px;'>{bname}</span>"
-                f"</div>"
-                f"<div style='font-size:13px; color:#94A3B8;'>"
-                f"上漲比例 <b style='color:#FFD700;'>{u_ratio}%</b> ({u_cnt}/{t_cnt} 家收紅)"
-                f"</div>"
-                f"</div>"
-                f"<div style='display:flex; align-items:center; gap:16px; flex-wrap:wrap;'>"
-                f"{leader_info_html}"
-                f"<div style='font-size:17px; font-weight:bold; color:{p_color}; min-width:80px; text-align:right;'>"
-                f"均 {p_sign}{avg_p:.2f}%"
-                f"</div>"
-                f"</div>"
-                f"</div>"
-            )
-            st.markdown(row_html, unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════════════════

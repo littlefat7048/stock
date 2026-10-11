@@ -219,6 +219,7 @@ def scan_market_signals(force_refresh: bool = False) -> dict:
     breakout_list = []
     steady_ma_picks = []
     all_star_list = []
+    strong_breakouts_list = []
 
     single_mode = (len(tickers) == 1)
 
@@ -481,6 +482,16 @@ def scan_market_signals(force_refresh: bool = False) -> dict:
             if is_steady_ma:
                 steady_ma_picks.append(entry)
 
+            # 7. 全市場真強勢突破（整理長紅突破，不限題材庫、不限連漲天數，由實體大長紅與大法人鎖碼驅動）
+            high_latest = highs[-1] if len(highs) > 0 else 0
+            body_ratio = (latest_close / high_latest) if high_latest > 0 else 0.0
+            if (is_breakout_20d and pct_change >= 4.0 and body_ratio >= 0.965 and
+                vol_ratio >= 1.8 and latest_vol_lots >= 800 and tot_lots > 0):
+                entry['is_strong_breakout'] = True
+                entry['breakout_phase'] = 'initial' if consec_up <= 2 else 'continuing'
+                entry['breakout_phase_label'] = '🌱 初升發動' if consec_up <= 2 else f'🔥 主升續噴 (連{consec_up}紅)'
+                strong_breakouts_list.append(entry)
+
             # 納入綜合評分候選
             if pct_change > 0 and latest_vol_lots >= 300:
                 top_recommendations.append(entry)
@@ -499,6 +510,10 @@ def scan_market_signals(force_refresh: bool = False) -> dict:
     steady_ma_picks.sort(key=lambda x: (x['composite_score'], -abs(x['pct_change'] - 2.0)), reverse=True)
     all_star_list.sort(key=lambda x: (x['pct_change'], x['vol_ratio']), reverse=True)
 
+    strong_breakouts_list.sort(key=lambda x: (x['pct_change'], x['vol_ratio']), reverse=True)
+    strong_continuing = [x for x in strong_breakouts_list if x['consec_up'] >= 3]
+    strong_initial = [x for x in strong_breakouts_list if x['consec_up'] <= 2]
+
     result = {
         'timestamp': datetime.now().isoformat(),
         'scan_date': datetime.now().strftime('%Y-%m-%d'),
@@ -512,7 +527,10 @@ def scan_market_signals(force_refresh: bool = False) -> dict:
         'consecutive_up': consec_up_list,
         'breakout': breakout_list,
         'steady_ma_picks': steady_ma_picks,
-        'all_star': all_star_list
+        'all_star': all_star_list,
+        'strong_breakouts': strong_breakouts_list,
+        'strong_continuing': strong_continuing,
+        'strong_initial': strong_initial
     }
 
     try:
@@ -520,6 +538,12 @@ def scan_market_signals(force_refresh: bool = False) -> dict:
         result['concept_rankings'] = concept_rankings
     except Exception:
         result['concept_rankings'] = []
+
+    try:
+        concept_consec = get_concept_consecutive_rankings(screener_data={'items': items})
+        result['concept_consecutive_rankings'] = concept_consec
+    except Exception:
+        result['concept_consecutive_rankings'] = []
 
     try:
         with open(SCREENER_CACHE_FILE, 'w', encoding='utf-8') as f:
@@ -596,3 +620,109 @@ def get_concept_rotation_rankings(screener_data: dict = None) -> list:
     # 依平均漲幅由高到低排序
     rankings.sort(key=lambda x: x['avg_pct_change'], reverse=True)
     return rankings
+
+
+def get_concept_consecutive_rankings(screener_data: dict = None) -> list:
+    """
+    全市場大數據動態計算：所有概念族群的【連續上漲天數】、【累積總漲幅】與【今日表現】
+    由連續上漲天數由多到少排序（連漲9天 -> 6天 -> 5天...），
+    同時整理該族群內的所有成分股（領頭羊、法人中軍、穩健起漲），供使用者一鍵展開查看。
+    """
+    if screener_data is None:
+        screener_data = scan_market_signals()
+
+    items = screener_data.get('items', {})
+    if not items:
+        return []
+
+    cdata = load_concept_data()
+    consec_rankings = []
+
+    for big_cat, sub_cats in cdata.get('概念分類', {}).items():
+        if not isinstance(sub_cats, dict):
+            continue
+        for cname, cinfo in sub_cats.items():
+            if not isinstance(cinfo, dict):
+                continue
+            stocks = cinfo.get('stocks', [])
+            valid_stocks = []
+            for s in stocks:
+                code = str(s.get('code') if isinstance(s, dict) else s).strip()
+                if code in items:
+                    it = items[code]
+                    role = s.get('role', '') if isinstance(s, dict) else ''
+                    valid_stocks.append({
+                        'code': code,
+                        'name': it.get('name', code),
+                        'role': role,
+                        'market_short': it.get('market_short', '市'),
+                        'close': it.get('close', 0.0),
+                        'pct_change': it.get('pct_change', 0.0),
+                        'volume_lots': it.get('volume_lots', 0),
+                        'vol_ratio': it.get('vol_ratio', 1.0),
+                        'consec_up': it.get('consec_up', 0),
+                        'inst_total_lots': it.get('inst_total_lots', 0.0),
+                        'trust_lots': it.get('trust_lots', 0.0),
+                        'foreign_lots': it.get('foreign_lots', 0.0),
+                        'composite_score': it.get('composite_score', 50),
+                        'stars': it.get('stars', '⭐⭐⭐'),
+                        'rec_tags': it.get('rec_tags', []),
+                        'recommend_reason': it.get('recommend_reason', ''),
+                        'is_steady_ma': it.get('is_steady_ma', False),
+                        'is_breakout_20d': it.get('is_breakout_20d', False),
+                        'sparkline': it.get('sparkline', [])
+                    })
+
+            if len(valid_stocks) < 2:
+                continue
+
+            # 依據近 10 日 sparkline 計算每日族群平均漲跌幅
+            spark_lens = [len(s['sparkline']) for s in valid_stocks if len(s['sparkline']) >= 5]
+            if not spark_lens:
+                continue
+            min_len = min(spark_lens)
+
+            daily_returns = []
+            for d in range(1, min_len):
+                day_rets = []
+                for s in valid_stocks:
+                    sp = s['sparkline']
+                    if len(sp) >= min_len and sp[d - 1] > 0:
+                        day_rets.append((sp[d] - sp[d - 1]) / sp[d - 1] * 100.0)
+                if day_rets:
+                    daily_returns.append(sum(day_rets) / len(day_rets))
+
+            consec_days = 0
+            cum_pct = 0.0
+            for r in reversed(daily_returns):
+                if r > 0:
+                    consec_days += 1
+                    cum_pct += r
+                else:
+                    break
+
+            # 族群內成分股依今日漲幅排序
+            by_pct = sorted(valid_stocks, key=lambda x: x['pct_change'], reverse=True)
+            by_inst = sorted(valid_stocks, key=lambda x: x['inst_total_lots'], reverse=True)
+
+            up_count = sum(1 for s in valid_stocks if s['pct_change'] > 0)
+
+            consec_rankings.append({
+                'big_category': big_cat,
+                'concept_name': cname,
+                'desc': cinfo.get('desc', ''),
+                'consec_days': consec_days,
+                'cum_pct': round(cum_pct, 2),
+                'today_avg_pct': round(daily_returns[-1], 2) if daily_returns else 0.0,
+                'total_count': len(valid_stocks),
+                'up_count': up_count,
+                'up_ratio': round(up_count / len(valid_stocks) * 100.0, 1),
+                'leader': by_pct[0] if by_pct else None,
+                'inst_leader': by_inst[0] if by_inst else None,
+                'stocks': by_pct
+            })
+
+    # 預設由「連續上漲天數」由多到少排序，天數相同則依「累計漲幅」由高到低
+    consec_rankings.sort(key=lambda x: (x['consec_days'], x['cum_pct'], x['today_avg_pct']), reverse=True)
+    return consec_rankings
+

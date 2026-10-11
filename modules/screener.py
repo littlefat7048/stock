@@ -20,6 +20,7 @@ CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'ca
 os.makedirs(CACHE_DIR, exist_ok=True)
 SCREENER_CACHE_FILE = os.path.join(CACHE_DIR, 'screener_results_v2.json')
 MARKET_INST_CACHE_FILE = os.path.join(CACHE_DIR, 'market_inst_today.json')
+MARKET_VALUATION_CACHE_FILE = os.path.join(CACHE_DIR, 'market_valuation_today.json')
 SCREENER_EXPIRY_SECONDS = 3600  # 1 小時快取
 
 
@@ -27,6 +28,8 @@ def _parse_num(v) -> float:
     if v is None:
         return 0.0
     s = str(v).replace(',', '').strip()
+    if s in ('-', 'N/A', '', 'None'):
+        return 0.0
     try:
         return float(s)
     except Exception:
@@ -110,6 +113,72 @@ def get_market_daily_institution_data(force_refresh: bool = False) -> dict:
     return inst_map
 
 
+def get_market_daily_valuation_data(force_refresh: bool = False) -> dict:
+    """
+    抓取全台股（上市 TWSE ＋ 上櫃 TPEx）每日官方最新本益比、殖利率、股價淨值比
+    回傳：{
+        '2330': {'pe': 29.56, 'pb': 10.28, 'yield': 0.86},
+        ...
+    }
+    快取 1 天，0 API 消耗，官方公開數據涵蓋近 2,000 檔。
+    """
+    if not force_refresh and os.path.exists(MARKET_VALUATION_CACHE_FILE):
+        try:
+            mtime = os.path.getmtime(MARKET_VALUATION_CACHE_FILE)
+            if time.time() - mtime < 86400:
+                with open(MARKET_VALUATION_CACHE_FILE, 'r', encoding='utf-8') as f:
+                    cached = json.load(f)
+                    if cached and len(cached) > 800:
+                        return cached
+        except Exception:
+            pass
+
+    val_map = {}
+
+    # 1. 證交所 (TWSE) 上市本益比、殖利率、淨值比 (BWIBBU_d)
+    try:
+        url_tw = "https://www.twse.com.tw/rwd/zh/afterTrading/BWIBBU_d?response=json&selectType=ALL"
+        r_tw = requests.get(url_tw, headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
+        data_tw = r_tw.json().get('data', [])
+        for row in data_tw:
+            c = str(row[0]).strip()
+            if len(c) == 4 and c.isdigit():
+                val_map[c] = {
+                    'yield': _parse_num(row[3]),
+                    'pe': _parse_num(row[5]),
+                    'pb': _parse_num(row[6])
+                }
+    except Exception as e:
+        print(f"TWSE Valuation API error: {e}")
+
+    # 2. 櫃買中心 (TPEx) 上櫃本益比、殖利率、淨值比
+    try:
+        url_otc = "https://www.tpex.org.tw/web/stock/aftertrading/peratio_analysis/pera_result.php?l=zh-tw&o=json"
+        r_otc = requests.get(url_otc, headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
+        tables = r_otc.json().get('tables', [])
+        if tables:
+            data_otc = tables[0].get('data', [])
+            for row in data_otc:
+                c = str(row[0]).strip()
+                if len(c) == 4 and c.isdigit():
+                    val_map[c] = {
+                        'yield': _parse_num(row[5]),
+                        'pe': _parse_num(row[2]),
+                        'pb': _parse_num(row[6])
+                    }
+    except Exception as e:
+        print(f"TPEx Valuation API error: {e}")
+
+    if val_map:
+        try:
+            with open(MARKET_VALUATION_CACHE_FILE, 'w', encoding='utf-8') as f:
+                json.dump(val_map, f, ensure_ascii=False)
+        except Exception:
+            pass
+
+    return val_map
+
+
 def get_screener_universe() -> list:
     """
     整合台股最具流動性與市場焦點的股票池（約 300~450 檔）：
@@ -187,8 +256,9 @@ def scan_market_signals(force_refresh: bool = False) -> dict:
             'all_star': []
         }
 
-    # 獲取全市場三大法人當日買賣超
+    # 獲取全市場三大法人當日買賣超與官方估值數據 (PE, PB, 殖利率)
     inst_map = get_market_daily_institution_data(force_refresh=force_refresh)
+    val_map = get_market_daily_valuation_data(force_refresh=force_refresh)
 
     # 建立 ticker 映射
     ticker_map = {}
@@ -201,8 +271,8 @@ def scan_market_signals(force_refresh: bool = False) -> dict:
     tickers = list(ticker_map.values())
 
     try:
-        # 下載近 25 日日線資料以精確計算均量、連漲天數、均線與 20 日高點
-        df_all = yf.download(tickers, period='25d', interval='1d', group_by='ticker', progress=False, threads=True)
+        # 下載近 65 日日線資料以精確計算季均線、60日波段回檔、短線急跌跌幅與落底轉折
+        df_all = yf.download(tickers, period='65d', interval='1d', group_by='ticker', progress=False, threads=True)
     except Exception as e:
         print(f"Screener yf.download error: {e}")
         df_all = pd.DataFrame()
@@ -220,6 +290,11 @@ def scan_market_signals(force_refresh: bool = False) -> dict:
     steady_ma_picks = []
     all_star_list = []
     strong_breakouts_list = []
+
+    oversold_all = []
+    oversold_flash_crash = []
+    oversold_turnaround = []
+    oversold_deep_value = []
 
     single_mode = (len(tickers) == 1)
 
@@ -268,11 +343,67 @@ def scan_market_signals(force_refresh: bool = False) -> dict:
             max_20d = max(lookback_20) if lookback_20 else latest_close
             is_breakout_20d = (latest_close >= max_20d) and (change > 0)
 
-            # 均線判定 (MA5, MA10, MA20)
+            # 均線判定 (MA5, MA10, MA20, MA60)
             ma5 = round(sum(closes[-5:]) / 5.0, 2) if len(closes) >= 5 else latest_close
             ma10 = round(sum(closes[-10:]) / 10.0, 2) if len(closes) >= 10 else latest_close
             ma20 = round(sum(closes[-20:]) / 20.0, 2) if len(closes) >= 20 else latest_close
+            ma60 = round(sum(closes[-60:]) / 60.0, 2) if len(closes) >= 60 else ma20
             is_ma_bull = (latest_close > ma5 > ma10 > ma20)
+
+            # 乖離率 (BIAS)
+            bias_5 = round((latest_close - ma5) / ma5 * 100.0, 2) if ma5 > 0 else 0.0
+            bias_20 = round((latest_close - ma20) / ma20 * 100.0, 2) if ma20 > 0 else 0.0
+            bias_60 = round((latest_close - ma60) / ma60 * 100.0, 2) if ma60 > 0 else 0.0
+
+            # 60 日波段最高價與回檔幅度
+            lookback_60 = closes[-60:] if len(closes) >= 60 else closes
+            max_60d = max(lookback_60) if lookback_60 else latest_close
+            drawdown_60d = round((latest_close - max_60d) / max_60d * 100.0, 2) if max_60d > 0 else 0.0
+
+            # 短期 3 日與 5 日累計漲跌幅
+            ret_3d = round((latest_close - closes[-4]) / closes[-4] * 100.0, 2) if len(closes) >= 4 and closes[-4] > 0 else 0.0
+            ret_5d = round((latest_close - closes[-6]) / closes[-6] * 100.0, 2) if len(closes) >= 6 and closes[-6] > 0 else 0.0
+
+            # 近 5 個交易日是否有跌停板（單日跌幅 <= -8.8%）
+            limit_down_count = 0
+            for i in range(max(1, len(closes) - 5), len(closes)):
+                p_c = closes[i - 1]
+                c_c = closes[i]
+                l_c = lows[i] if i < len(lows) else c_c
+                if p_c > 0:
+                    if (c_c - p_c) / p_c <= -0.088 or (l_c - p_c) / p_c <= -0.088:
+                        limit_down_count += 1
+            has_limit_down = (limit_down_count >= 1)
+
+            # KD (9, 3, 3) 快速指標運算
+            kd_k, kd_d, prev_k, prev_d = 50.0, 50.0, 50.0, 50.0
+            if len(closes) >= 12:
+                k_val, d_val = 50.0, 50.0
+                for i in range(max(9, len(closes) - 20), len(closes)):
+                    sub_h = highs[max(0, i - 8):i + 1]
+                    sub_l = lows[max(0, i - 8):i + 1]
+                    hh = max(sub_h) if sub_h else closes[i]
+                    ll = min(sub_l) if sub_l else closes[i]
+                    rsv = ((closes[i] - ll) / (hh - ll) * 100.0) if (hh > ll) else 50.0
+                    prev_k, prev_d = k_val, d_val
+                    k_val = round((2.0 / 3.0) * k_val + (1.0 / 3.0) * rsv, 2)
+                    d_val = round((2.0 / 3.0) * d_val + (1.0 / 3.0) * k_val, 2)
+                kd_k, kd_d = k_val, d_val
+
+            # 止跌與打底轉折特徵
+            is_stand_ma5 = (latest_close > ma5 and change > 0)
+            is_kd_gold = (kd_k <= 35 and kd_k > kd_d and prev_k <= prev_d)
+            is_hammer = (min(opens[-1], latest_close) - lows[-1]) >= 1.2 * max(0.01, abs(latest_close - opens[-1]))
+
+            # 官方估值數據
+            val = val_map.get(code, {'yield': 0.0, 'pe': 0.0, 'pb': 0.0})
+            pe_val = val.get('pe', 0.0)
+            yield_val = val.get('yield', 0.0)
+            pb_val = val.get('pb', 0.0)
+
+            is_good_fund = (0.0 < pe_val <= 20.0) or (yield_val >= 3.8)
+            is_deep_pe = (0.0 < pe_val <= 14.0)
+            is_high_yield = (yield_val >= 4.5)
 
             # 支撐與防守建議價
             support_price = round(max(ma10, latest_close * 0.94), 2)
@@ -452,7 +583,23 @@ def scan_market_signals(force_refresh: bool = False) -> dict:
                 'star_label': star_label,
                 'rec_tags': rec_tags,
                 'recommend_reason': recommend_reason,
-                'sparkline': sparkline
+                'sparkline': sparkline,
+                'pe': pe_val,
+                'dividend_yield': yield_val,
+                'pb': pb_val,
+                'drawdown_60d': drawdown_60d,
+                'ret_3d': ret_3d,
+                'ret_5d': ret_5d,
+                'has_limit_down': has_limit_down,
+                'limit_down_count': limit_down_count,
+                'bias_5': bias_5,
+                'bias_20': bias_20,
+                'bias_60': bias_60,
+                'kd_k': kd_k,
+                'kd_d': kd_d,
+                'is_stand_ma5': is_stand_ma5,
+                'is_kd_gold': is_kd_gold,
+                'is_hammer': is_hammer
             }
 
             items[code] = entry
@@ -492,6 +639,76 @@ def scan_market_signals(force_refresh: bool = False) -> dict:
                 entry['breakout_phase_label'] = '🌱 初升發動' if consec_up <= 2 else f'🔥 主升續噴 (連{consec_up}紅)'
                 strong_breakouts_list.append(entry)
 
+            # 8. 跌深價值與轉折潛力股判定 (急跌錯殺 / 打底轉折 / 價值超跌)
+            is_flash_crash = (
+                is_good_fund and latest_vol_lots >= 200 and
+                (has_limit_down or ret_3d <= -8.0 or ret_5d <= -12.0 or bias_5 <= -6.0 or bias_20 <= -12.0)
+            )
+
+            is_turnaround = (
+                is_good_fund and latest_vol_lots >= 250 and
+                (drawdown_60d <= -10.0 or bias_20 <= -4.5 or ret_5d <= -4.5) and
+                (is_stand_ma5 or is_kd_gold or is_hammer)
+            )
+
+            is_deep_value = (
+                is_good_fund and latest_vol_lots >= 200 and
+                (is_deep_pe or is_high_yield) and
+                (drawdown_60d <= -12.0 or bias_60 <= -6.0 or bias_20 <= -4.5)
+            )
+
+            if is_flash_crash or is_turnaround or is_deep_value:
+                os_entry = dict(entry)
+                os_entry['is_flash_crash'] = is_flash_crash
+                os_entry['is_turnaround'] = is_turnaround
+                os_entry['is_deep_value'] = is_deep_value
+
+                # 專屬標籤
+                os_tags = []
+                if is_flash_crash:
+                    os_tags.append("⚡ 急跌錯殺")
+                if has_limit_down:
+                    os_tags.append("🩸 曾連碰跌停" if limit_down_count >= 2 else "🩸 曾碰跌停")
+                if is_turnaround:
+                    os_tags.append("🔄 打底轉折")
+                if is_stand_ma5:
+                    os_tags.append("📈 站上5MA")
+                if is_kd_gold:
+                    os_tags.append("🌟 KD低檔金叉")
+                if is_hammer:
+                    os_tags.append("💥 爆量長下影線")
+                if tot_lots > 100:
+                    os_tags.append("🤝 法人低檔回補")
+                if is_deep_pe:
+                    os_tags.append(f"PE {pe_val:.1f}x")
+                if yield_val >= 4.0:
+                    os_tags.append(f"🛡️ 殖利率 {yield_val:.1f}%")
+
+                os_entry['oversold_tags'] = os_tags
+
+                # 操盤解讀理由
+                os_reasons = []
+                if pe_val > 0:
+                    os_reasons.append(f"本益比僅 {pe_val:.1f} 倍")
+                if yield_val > 0:
+                    os_reasons.append(f"殖利率達 {yield_val:.1f}%")
+                if is_flash_crash:
+                    os_reasons.append(f"近5日急跌 {ret_5d:.1f}% 觸發恐慌清洗，短線具備急跌錯殺報復性反彈契機")
+                elif is_turnaround:
+                    os_reasons.append(f"自波段高點回檔 {drawdown_60d:.1f}% 後，今日出現轉折止跌訊號")
+                elif is_deep_value:
+                    os_reasons.append(f"波段修正 {drawdown_60d:.1f}% 進入深幅折價區，具長線安全邊際")
+
+                os_entry['oversold_reason'] = "，".join(os_reasons) + "。"
+
+                oversold_all.append(os_entry)
+                if is_flash_crash:
+                    oversold_flash_crash.append(os_entry)
+                if is_turnaround:
+                    oversold_turnaround.append(os_entry)
+                if is_deep_value:
+                    oversold_deep_value.append(os_entry)
+
             # 納入綜合評分候選
             if pct_change > 0 and latest_vol_lots >= 300:
                 top_recommendations.append(entry)
@@ -514,6 +731,11 @@ def scan_market_signals(force_refresh: bool = False) -> dict:
     strong_continuing = [x for x in strong_breakouts_list if x['consec_up'] >= 3]
     strong_initial = [x for x in strong_breakouts_list if x['consec_up'] <= 2]
 
+    oversold_all.sort(key=lambda x: (x['drawdown_60d'], -x['dividend_yield']))
+    oversold_flash_crash.sort(key=lambda x: (x['ret_5d'], x['drawdown_60d']))
+    oversold_turnaround.sort(key=lambda x: (-x['pct_change'], x['drawdown_60d']))
+    oversold_deep_value.sort(key=lambda x: (-x['dividend_yield'], x['pe'] if x['pe'] > 0 else 999))
+
     result = {
         'timestamp': datetime.now().isoformat(),
         'scan_date': datetime.now().strftime('%Y-%m-%d'),
@@ -530,7 +752,11 @@ def scan_market_signals(force_refresh: bool = False) -> dict:
         'all_star': all_star_list,
         'strong_breakouts': strong_breakouts_list,
         'strong_continuing': strong_continuing,
-        'strong_initial': strong_initial
+        'strong_initial': strong_initial,
+        'oversold_all': oversold_all,
+        'oversold_flash_crash': oversold_flash_crash,
+        'oversold_turnaround': oversold_turnaround,
+        'oversold_deep_value': oversold_deep_value
     }
 
     try:

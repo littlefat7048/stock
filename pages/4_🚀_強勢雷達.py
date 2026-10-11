@@ -73,6 +73,27 @@ st.markdown("""
     border: 1px solid #3B82F6;
     color: #60A5FA;
 }
+.rec-tag-chip-oversold {
+    background: rgba(245, 158, 11, 0.15);
+    border: 1px solid #F59E0B;
+    color: #FBBF24;
+}
+.rec-tag-chip-crash {
+    background: rgba(239, 68, 68, 0.2);
+    border: 1px solid #EF4444;
+    color: #F87171;
+}
+.oversold-card {
+    background: #141722;
+    border: 1px solid #232A3B;
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    transition: all 0.2s;
+}
+.oversold-card:hover {
+    border-color: #F59E0B;
+}
 .rec-btn-link {
     display: inline-flex;
     align-items: center;
@@ -112,7 +133,7 @@ st.markdown(
     "<div>"
     "<h1 style='margin:0; font-size:26px;'>🚀 台股智慧策略選股與推薦清單</h1>"
     "<div style='color:#94A3B8; font-size:15px; margin-top:3px;'>"
-    "⚡ 結合「三大法人籌碼鎖碼」×「技術均線爆量」×「熱門概念族群輪動」×「隔日沖風險避坑」多維度大數據精選"
+    "⚡ 結合「三大法人籌碼鎖碼」×「技術均線爆量」×「熱門概念族群輪動」×「跌深錯殺轉折」×「隔日沖風險避坑」多維度大數據精選"
     "</div>"
     "</div>"
     "</div>",
@@ -144,6 +165,12 @@ if not concept_rankings:
 strong_breakouts = screener_data.get('strong_breakouts', [])
 strong_continuing = screener_data.get('strong_continuing', [])
 strong_initial = screener_data.get('strong_initial', [])
+
+oversold_all = screener_data.get('oversold_all', [])
+oversold_flash_crash = screener_data.get('oversold_flash_crash', [])
+oversold_turnaround = screener_data.get('oversold_turnaround', [])
+oversold_deep_value = screener_data.get('oversold_deep_value', [])
+
 concept_consec_rankings = screener_data.get('concept_consecutive_rankings', [])
 if not concept_consec_rankings:
     concept_consec_rankings = get_concept_consecutive_rankings(screener_data)
@@ -187,10 +214,11 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# ── 7 大核心策略頁籤 ──────────────────────────────────────────
-t_consec, t_strong, t_rec, t_chip, t_tech, t_steady, t_guide = st.tabs([
+# ── 8 大核心策略頁籤 ──────────────────────────────────────────
+t_consec, t_strong, t_oversold, t_rec, t_chip, t_tech, t_steady, t_guide = st.tabs([
     f"🔥 族群連漲總榜 ({len(concept_consec_rankings)})",
     f"⚡ 真強勢突破 ({len(strong_breakouts)})",
+    f"💎 跌深價值與轉折 ({len(oversold_all)})",
     f"🏆 今日精選推薦 ({len(top_recs)})",
     f"🏛️ 籌碼面策略 ({len(trust_picks) + len(foreign_picks)})",
     f"📈 技術面策略 ({len(vol_surge_list)})",
@@ -442,7 +470,164 @@ with t_strong:
 
 
 # ══════════════════════════════════════════════════════════
-# Tab 3: 🏆 今日精選推薦總榜 (Top Picks)
+# Tab 3: 💎 跌深價值與打底轉折潛力股 (急跌錯殺 / 打底轉折 / 價值超跌)
+# ══════════════════════════════════════════════════════════
+with t_oversold:
+    st.markdown(
+        "<div style='background:#181A26; border-left:4px solid #F59E0B; border-radius:8px; padding:12px 16px; margin-bottom:12px; font-size:15px; color:#F5F5F4;'>"
+        "💎 <b>跌深價值與打底轉折潛力股說明：</b>"
+        "專為<b>不追高、想低檔撿便宜或搶波段反彈</b>的投資人設計！"
+        "採用「基本面安全邊際（低 P/E ＋ 高殖利率）」嚴防價值陷阱與下墜飛刀，並分類提供：<br>"
+        "• <b>【⚡ 急跌恐慌錯殺】</b>：短天期急跌跳水、曾連吞跌停板，但基本面優良之非理性恐慌清洗股。<br>"
+        "• <b>【🔄 打底轉折第一根】</b>：波段跌深後，今日出現「收紅站上5MA / KD低檔金叉 / 爆量長下影線 / 法人轉買超」之波段反彈標的。<br>"
+        "• <b>【💎 價值超跌甜甜價】</b>：本益比偏低、高現金殖利率護體且波段回檔深之長線存股好公司。"
+        "</div>",
+        unsafe_allow_html=True
+    )
+
+    os_col1, os_col2, os_col3 = st.columns([3.2, 1.4, 1.4])
+    with os_col1:
+        oversold_choice = st.radio(
+            "篩選分類",
+            [
+                f"全部跌深好股 ({len(oversold_all)})",
+                f"⚡ 急跌恐慌錯殺 ({len(oversold_flash_crash)})",
+                f"🔄 打底轉折第一根 ({len(oversold_turnaround)})",
+                f"💎 價值超跌甜甜價 ({len(oversold_deep_value)})"
+            ],
+            horizontal=True,
+            key="os_choice_radio"
+        )
+    with os_col2:
+        os_sort = st.selectbox(
+            "排序依據",
+            [
+                "依季高回檔幅度最大 (跌最深)",
+                "依近5日跌幅最大 (最急跌)",
+                "依現金殖利率最高",
+                "依本益比最低 (最便宜)",
+                "依今日反彈漲幅最高"
+            ],
+            key="os_sort_select"
+        )
+    with os_col3:
+        os_min_yield = st.selectbox(
+            "最低殖利率",
+            [0.0, 3.5, 4.5, 5.5],
+            format_func=lambda x: "殖利率不限" if x == 0.0 else f"殖利率 ≥ {x}%",
+            key="os_min_yield_select"
+        )
+
+    if "急跌恐慌錯殺" in oversold_choice:
+        cur_os = list(oversold_flash_crash)
+    elif "打底轉折第一根" in oversold_choice:
+        cur_os = list(oversold_turnaround)
+    elif "價值超跌甜甜價" in oversold_choice:
+        cur_os = list(oversold_deep_value)
+    else:
+        cur_os = list(oversold_all)
+
+    if os_min_yield > 0:
+        cur_os = [x for x in cur_os if x.get('dividend_yield', 0.0) >= os_min_yield]
+
+    if os_sort == "依近5日跌幅最大 (最急跌)":
+        cur_os.sort(key=lambda x: x.get('ret_5d', 0.0))
+    elif os_sort == "依現金殖利率最高":
+        cur_os.sort(key=lambda x: x.get('dividend_yield', 0.0), reverse=True)
+    elif os_sort == "依本益比最低 (最便宜)":
+        cur_os.sort(key=lambda x: (x.get('pe', 999.0) if x.get('pe', 0) > 0 else 999.0))
+    elif os_sort == "依今日反彈漲幅最高":
+        cur_os.sort(key=lambda x: x.get('pct_change', 0.0), reverse=True)
+    else:
+        cur_os.sort(key=lambda x: x.get('drawdown_60d', 0.0))
+
+    st.caption(f"共篩選出 **{len(cur_os)}** 檔跌深潛力標的")
+    if not cur_os:
+        st.info("目前無符合條件的跌深潛力股。")
+    else:
+        for idx, item in enumerate(cur_os):
+            c_code = item['code']
+            c_name = item['name']
+            c_mkt = item['market_short']
+            c_close = item['close']
+            c_pct = item['pct_change']
+            c_chg = item['change']
+            c_dd = item.get('drawdown_60d', 0.0)
+            c_r5 = item.get('ret_5d', 0.0)
+            c_pe = item.get('pe', 0.0)
+            c_dy = item.get('dividend_yield', 0.0)
+            c_pb = item.get('pb', 0.0)
+            c_tags = item.get('oversold_tags', [])
+            c_reason = item.get('oversold_reason', '')
+            c_vol = item.get('volume_lots', 0)
+            c_tot_lots = item.get('inst_total_lots', 0.0)
+            c_has_ld = item.get('has_limit_down', False)
+
+            p_color = "#EF4444" if c_pct > 0 else ("#10B981" if c_pct < 0 else "#CBD5E1")
+            p_sign = "+" if c_pct > 0 else ""
+
+            # 標籤 HTML
+            tag_badges = []
+            for t in c_tags:
+                if "跌停" in t or "急跌" in t:
+                    tag_badges.append(f"<span class='rec-tag-chip rec-tag-chip-crash'>{t}</span>")
+                elif "殖利率" in t or "PE" in t or "甜甜價" in t:
+                    tag_badges.append(f"<span class='rec-tag-chip rec-tag-chip-oversold'>{t}</span>")
+                elif "5MA" in t or "金叉" in t or "轉折" in t:
+                    tag_badges.append(f"<span class='rec-tag-chip rec-tag-chip-bull'>{t}</span>")
+                else:
+                    tag_badges.append(f"<span class='rec-tag-chip'>{t}</span>")
+            tags_html = "".join(tag_badges)
+
+            # 跌幅與估值膠囊
+            dd_color = "#EF4444" if c_dd <= -20 else "#F59E0B"
+            r5_color = "#EF4444" if c_r5 <= -10 else "#94A3B8"
+            pe_txt = f"{c_pe:.1f}x" if c_pe > 0 else "N/A"
+            dy_txt = f"{c_dy:.1f}%" if c_dy > 0 else "N/A"
+            pb_txt = f"{c_pb:.2f}x" if c_pb > 0 else "N/A"
+
+            card_html = (
+                f"<div class='oversold-card'>"
+                f"<div style='display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;'>"
+                f"<div>"
+                f"<div style='display:flex; align-items:center; gap:8px;'>"
+                f"<span style='font-size:18px; font-weight:800; color:#FFFFFF;'>{c_name}</span>"
+                f"<span style='font-size:13px; color:#94A3B8; font-weight:bold;'>{c_code}</span>"
+                f"<span style='font-size:11px; color:#00D4AA; background:#1C2834; padding:1px 6px; border-radius:4px;'>{c_mkt}</span>"
+                f"</div>"
+                f"<div style='margin-top:6px; display:flex; gap:6px; flex-wrap:wrap;'>"
+                f"{tags_html}"
+                f"</div>"
+                f"</div>"
+                f"<div style='text-align:right;'>"
+                f"<div style='font-size:20px; font-weight:800; color:{p_color};'>"
+                f"{c_close:.2f} <span style='font-size:14px; font-weight:normal;'>({p_sign}{c_pct:.2f}%)</span>"
+                f"</div>"
+                f"<div style='font-size:12px; color:#94A3B8; margin-top:2px;'>"
+                f"成交 {c_vol:,} 張 ｜ 法人 {c_tot_lots:+,.0f} 張"
+                f"</div>"
+                f"</div>"
+                f"</div>"
+                f"<div style='display:grid; grid-template-columns:repeat(auto-fit, minmax(110px, 1fr)); gap:6px; margin:10px 0; background:#0E1118; padding:8px 10px; border-radius:6px;'>"
+                f"<div style='font-size:12px; color:#94A3B8;'>季高回檔: <b style='color:{dd_color};'>{c_dd:.1f}%</b></div>"
+                f"<div style='font-size:12px; color:#94A3B8;'>近5日跌幅: <b style='color:{r5_color};'>{c_r5:.1f}%</b></div>"
+                f"<div style='font-size:12px; color:#94A3B8;'>本益比: <b style='color:#00D4AA;'>{pe_txt}</b></div>"
+                f"<div style='font-size:12px; color:#94A3B8;'>殖利率: <b style='color:#F59E0B;'>{dy_txt}</b></div>"
+                f"<div style='font-size:12px; color:#94A3B8;'>淨值比: <b style='color:#94A3B8;'>{pb_txt}</b></div>"
+                f"</div>"
+                f"<div style='font-size:13px; color:#CBD5E1; line-height:1.5; margin-bottom:8px;'>"
+                f"💡 <b>操盤解析：</b>{c_reason}"
+                f"</div>"
+                f"<div style='display:flex; justify-content:flex-end;'>"
+                f"<a href='/?stock={c_code}' target='_blank' class='rec-btn-link'>📊 進入個股完整分析 →</a>"
+                f"</div>"
+                f"</div>"
+            )
+            st.markdown(card_html, unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════
+# Tab 4: 🏆 今日精選推薦總榜 (Top Picks)
 # ══════════════════════════════════════════════════════════
 with t_rec:
     st.markdown(

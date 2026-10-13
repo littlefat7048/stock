@@ -9,7 +9,6 @@
 - 分頁 5：🤖 AI 深度評語（Gemini 3.8 Flash 操盤策略與目標價分析）
 - 分頁 6：🏭 產業生態（概念股定位、同概念夥伴、同產業競爭公司比較）
 """
-import importlib
 import streamlit as st
 import pandas as pd
 import sys
@@ -24,14 +23,6 @@ import modules.technical_analysis
 import modules.chip_analysis
 import modules.ai_analysis
 import modules.disposal_radar
-
-importlib.reload(utils.helpers)
-importlib.reload(utils.charts)
-importlib.reload(modules.data_fetcher)
-importlib.reload(modules.technical_analysis)
-importlib.reload(modules.chip_analysis)
-importlib.reload(modules.ai_analysis)
-importlib.reload(modules.disposal_radar)
 
 from modules.disposal_radar import get_stock_disposal_status
 

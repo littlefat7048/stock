@@ -5,7 +5,6 @@
 2. 🌐 上中下游產業鏈地圖（光通訊 CPO、CoWoS 先進封裝、AI 伺服器水冷 流程圖）
 3. 🇺🇸 美股巨頭對標台股供應鏈（Lumentum、Nvidia、Broadcom、Apple、Tesla 對標台廠與即時報價）
 """
-import importlib
 import urllib.parse
 import streamlit as st
 import sys
@@ -14,8 +13,6 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import utils.helpers
 import modules.data_fetcher
-importlib.reload(utils.helpers)
-importlib.reload(modules.data_fetcher)
 
 from utils.helpers import (
     load_concept_data, load_supply_chain_data, get_common_css, get_top_nav_html,

@@ -68,10 +68,7 @@ components.html("""
 </script>
 """, height=0, width=0)
 
-import importlib
-importlib.invalidate_caches()
 import utils.helpers
-importlib.reload(utils.helpers)
 
 from modules.daily_report import (
     scrape_report, load_report_cache, save_report_cache,

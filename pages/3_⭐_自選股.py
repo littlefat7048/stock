@@ -4,7 +4,6 @@
 - 仿專業看盤 App 的「紅綠K棒 + 報價漲跌 + 平盤雙色走勢圖」自選股看盤面板
 - 代號或中文股名快速新增、投資備註編輯、一鍵跳轉個股完整分析
 """
-import importlib
 import streamlit as st
 import sys
 import os
@@ -12,8 +11,6 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import utils.helpers
 import modules.data_fetcher
-importlib.reload(utils.helpers)
-importlib.reload(modules.data_fetcher)
 
 from utils.helpers import (
     load_watchlist, save_watchlist,

@@ -15,18 +15,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
-import importlib
 
 import modules.data_fetcher
 import modules.broker_analysis
 import utils.charts
 import utils.helpers
-
-try:
-    importlib.reload(modules.broker_analysis)
-    importlib.reload(utils.charts)
-except Exception:
-    pass
 
 from modules.data_fetcher import get_stock_info
 from modules.broker_analysis import (

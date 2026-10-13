@@ -33,7 +33,8 @@ importlib.reload(modules.ai_analysis)
 
 from modules.data_fetcher import (
     get_stock_info, get_price_history, get_financials,
-    get_daily_report_commentary_for_stock, build_business_and_profit_analysis
+    get_daily_report_commentary_for_stock, build_business_and_profit_analysis,
+    get_realtime_twse_quote
 )
 from modules.technical_analysis import (
     calculate_indicators, get_technical_score,
@@ -175,11 +176,19 @@ if stock_code:
         st.error(f"❌ 找不到台股代號「{raw_input}」（解析為 {stock_code}）的股價資料，請確認輸入的台股代號或中文名稱是否正確。")
         st.stop()
 
-    # 取得最新價格與漲跌
+    # 取得最新價格與漲跌（官方即時資料雙保險：優先以證交所 MIS 精確昨收與漲跌對齊，防範歷史 K 線連假缺漏日錯位）
+    rt_quote = get_realtime_twse_quote(stock_code)
     latest_close = float(df_price['Close'].iloc[-1])
     prev_close   = float(df_price['Close'].iloc[-2]) if len(df_price) > 1 else latest_close
-    price_change = latest_close - prev_close
-    pct_change   = (price_change / prev_close * 100) if prev_close else 0.0
+
+    if rt_quote and rt_quote.get('close') and rt_quote.get('prev_close'):
+        latest_close = rt_quote['close']
+        prev_close   = rt_quote['prev_close']
+        price_change = rt_quote['change']
+        pct_change   = rt_quote['pct_change']
+    else:
+        price_change = latest_close - prev_close
+        pct_change   = (price_change / prev_close * 100) if prev_close else 0.0
     latest_date_str = df_price.index[-1].strftime('%Y/%m/%d') if hasattr(df_price.index[-1], 'strftime') else str(df_price.index[-1])[:10]
 
     # 計算技術指標與籌碼分數（含雙層過濾「法人力度 / 顯著買超」）

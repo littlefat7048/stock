@@ -718,6 +718,60 @@ def build_business_and_profit_analysis(
 
 
 
+def get_realtime_twse_quote(code: str) -> dict:
+    """
+    從證交所即時 MIS 系統取得台股當日最即時的成交價、昨收價、漲跌、開高低、成交量
+    100% 官方資料，徹底防範 Yahoo Finance 缺漏交易日或連假後昨收錯位的問題
+    """
+    code = str(code).strip()
+    tw_info = get_tw_stock_chinese_info(code)
+    m = tw_info.get('market', '')
+    preferred_prefix = 'otc' if ('櫃' in m or '興' in m) else 'tse'
+    prefixes = [preferred_prefix, 'otc' if preferred_prefix == 'tse' else 'tse']
+
+    for ch_prefix in prefixes:
+        try:
+            ex_ch = f"{ch_prefix}_{code}.tw"
+            url = f"https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch={ex_ch}&json=1&delay=0"
+            r = requests.get(url, timeout=3, headers={'User-Agent': 'Mozilla/5.0'}).json()
+            msg_arr = r.get('msgArray', [])
+            if msg_arr:
+                it = msg_arr[0]
+                z_str = it.get('z', '-')
+                y_str = it.get('y', '-')
+                close_val = None
+                if z_str not in ('-', '', None):
+                    close_val = float(z_str)
+                elif it.get('pz') not in ('-', '', None):
+                    close_val = float(it['pz'])
+
+                prev_val = float(y_str) if y_str not in ('-', '', None) else None
+                if close_val is not None and prev_val is not None and prev_val > 0:
+                    chg = close_val - prev_val
+                    pct = (chg / prev_val) * 100.0
+                    open_val = float(it['o']) if it.get('o') not in ('-', '', None) else close_val
+                    high_val = float(it['h']) if it.get('h') not in ('-', '', None) else max(open_val, close_val)
+                    low_val = float(it['l']) if it.get('l') not in ('-', '', None) else min(open_val, close_val)
+                    vol_val = float(it['v']) if it.get('v') not in ('-', '', None) else 0.0
+
+                    return {
+                        'code': code,
+                        'name': it.get('n', ''),
+                        'close': round(close_val, 2),
+                        'prev_close': round(prev_val, 2),
+                        'change': round(chg, 2),
+                        'pct_change': round(pct, 2),
+                        'open': round(open_val, 2),
+                        'high': round(high_val, 2),
+                        'low': round(low_val, 2),
+                        'volume': vol_val,
+                        'source': 'twse_mis'
+                    }
+        except Exception:
+            pass
+    return {}
+
+
 def get_price_history(code: str, period: str = '1y', interval: str = '1d') -> pd.DataFrame:
     """取得歷史 K 線 OHLCV DataFrame（含自動修復 yfinance 缺漏或 NaN 當日 K 棒之雙保險機制）"""
     ticker = normalize_ticker(code)
@@ -731,7 +785,7 @@ def get_price_history(code: str, period: str = '1y', interval: str = '1d') -> pd
     # 雙保險機制：若 yfinance 抓到的資料有 NaN（常見於當日剛收盤未結算完畢），或延遲尚未抓到最新交易日，自動由 FinMind 補齊正確價格
     if df is not None and not df.empty:
         try:
-            start_d = (datetime.now() - timedelta(days=15)).strftime('%Y-%m-%d')
+            start_d = (datetime.now() - timedelta(days=20)).strftime('%Y-%m-%d')
             r = requests.get(
                 FINMIND_URL,
                 params={'dataset': 'TaiwanStockPrice', 'data_id': str(code).strip(), 'start_date': start_d},
@@ -753,21 +807,26 @@ def get_price_history(code: str, period: str = '1y', interval: str = '1d') -> pd
                             if float(f.get('Trading_Volume', 0)) > 0:
                                 df.loc[dt, 'Volume'] = float(f['Trading_Volume'])
 
-                # 若 FinMind 有比 yfinance 更即時的最新交易日資料，自動追加
-                latest_f = f_rows[-1]
-                latest_f_date = str(latest_f.get('date', ''))
-                max_df_date = df.index.max().strftime('%Y-%m-%d')
-                if latest_f_date > max_df_date and float(latest_f.get('close', 0)) > 0:
-                    tz_info = getattr(df.index, 'tz', None)
-                    new_idx = pd.to_datetime(latest_f_date).tz_localize(tz_info) if tz_info is not None else pd.to_datetime(latest_f_date)
-                    new_row = pd.DataFrame([{
-                        'Open': float(latest_f['open']),
-                        'High': float(latest_f['max']),
-                        'Low': float(latest_f['min']),
-                        'Close': float(latest_f['close']),
-                        'Volume': float(latest_f.get('Trading_Volume', 0))
-                    }], index=[new_idx])
-                    df = pd.concat([df, new_row])
+                # 補齊 yfinance 遺漏的任何交易日（包括中間缺漏、連假後首日、及最新交易日）
+                df_dates = {idx.strftime('%Y-%m-%d') for idx in df.index}
+                tz_info = getattr(df.index, 'tz', None)
+                missing_rows = []
+                for f in f_rows:
+                    f_date = str(f.get('date', ''))
+                    if f_date and f_date not in df_dates and float(f.get('close', 0)) > 0:
+                        new_idx = pd.to_datetime(f_date).tz_localize(tz_info) if tz_info is not None else pd.to_datetime(f_date)
+                        missing_rows.append({
+                            'Date': new_idx,
+                            'Open': float(f['open']),
+                            'High': float(f['max']),
+                            'Low': float(f['min']),
+                            'Close': float(f['close']),
+                            'Volume': float(f.get('Trading_Volume', 0))
+                        })
+                if missing_rows:
+                    m_df = pd.DataFrame(missing_rows).set_index('Date')
+                    df = pd.concat([df, m_df]).sort_index()
+                    df = df[~df.index.duplicated(keep='last')]
         except Exception as e:
             print(f"FinMind patch error for {code}: {e}")
 
@@ -1058,6 +1117,44 @@ def get_batch_quotes_with_intraday(codes: list) -> dict:
             pass
 
         result[c] = info_item
+
+    # 雙保險校正：透過證交所官方 MIS 批次查詢官方最新成交價、昨收價與漲跌（修正 Yahoo Finance 缺漏交易日）
+    try:
+        twse_channels = []
+        for c in clean_codes:
+            m = get_tw_stock_chinese_info(c).get('market', '')
+            prefix = 'otc' if ('櫃' in m or '興' in m) else 'tse'
+            twse_channels.append(f"{prefix}_{c}.tw")
+
+        for i in range(0, len(twse_channels), 40):
+            chunk = twse_channels[i:i + 40]
+            ex_ch_param = "|".join(chunk)
+            mis_url = f"https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch={ex_ch_param}&json=1&delay=0"
+            r = requests.get(mis_url, timeout=3, headers={'User-Agent': 'Mozilla/5.0'}).json()
+            for it in r.get('msgArray', []):
+                code_str = it.get('c', '')
+                if code_str in result:
+                    z_val = it.get('z', '-')
+                    y_val = it.get('y', '-')
+                    c_price = float(z_val) if z_val not in ('-', '', None) else (float(it['pz']) if it.get('pz') not in ('-', '', None) else None)
+                    p_price = float(y_val) if y_val not in ('-', '', None) else None
+                    if c_price is not None and p_price is not None and p_price > 0:
+                        chg_official = c_price - p_price
+                        pct_official = (chg_official / p_price) * 100.0
+                        result[code_str].update({
+                            'close': round(c_price, 2),
+                            'prev_close': round(p_price, 2),
+                            'change': round(chg_official, 2),
+                            'pct_change': round(pct_official, 2),
+                        })
+                        if it.get('o') not in ('-', '', None):
+                            result[code_str]['open'] = round(float(it['o']), 2)
+                        if it.get('h') not in ('-', '', None):
+                            result[code_str]['high'] = round(float(it['h']), 2)
+                        if it.get('l') not in ('-', '', None):
+                            result[code_str]['low'] = round(float(it['l']), 2)
+    except Exception:
+        pass
 
     _set_cache(cache_key, result)
     return result

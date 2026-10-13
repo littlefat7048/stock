@@ -773,6 +773,7 @@ def get_top_nav_html(active: str = 'home') -> str:
         ('home', '📊 盤後日報', '📊 日報'),
         ('radar', '🚀 策略推薦', '🚀 推薦'),
         ('stock', '🔍 股票分析', '🔍 分析'),
+        ('disposal', '🚨 處置雷達', '🚨 處置'),
         ('concept', '🏷️ 概念股', '🏷️ 概念'),
         ('watch', '⭐ 自選股', '⭐ 自選'),
     ]

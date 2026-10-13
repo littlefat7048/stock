@@ -40,6 +40,8 @@ if 'nav' in st.query_params and st.query_params['nav']:
         st.switch_page("pages/2_🏷️_概念股.py")
     elif nav_target == 'watch':
         st.switch_page("pages/3_⭐_自選股.py")
+    elif nav_target == 'disposal':
+        st.switch_page("pages/5_🚨_處置與注意股雷達.py")
 
 # ── 3. 注入父視窗跨 iframe 通訊監聽器 ─────────────────────
 components.html("""

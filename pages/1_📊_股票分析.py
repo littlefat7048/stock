@@ -23,6 +23,7 @@ import modules.data_fetcher
 import modules.technical_analysis
 import modules.chip_analysis
 import modules.ai_analysis
+import modules.disposal_radar
 
 importlib.reload(utils.helpers)
 importlib.reload(utils.charts)
@@ -30,6 +31,9 @@ importlib.reload(modules.data_fetcher)
 importlib.reload(modules.technical_analysis)
 importlib.reload(modules.chip_analysis)
 importlib.reload(modules.ai_analysis)
+importlib.reload(modules.disposal_radar)
+
+from modules.disposal_radar import get_stock_disposal_status
 
 from modules.data_fetcher import (
     get_stock_info, get_price_history, get_financials,
@@ -251,6 +255,60 @@ if stock_code:
                 save_watchlist(watchlist)
                 st.toast(f"已將 {stock_name} 從自選股移除")
             st.rerun()
+    # ── 處置 / 警戒 / 當沖券差軋空 / 自結損益即時動態警報 ───
+    disp_status = get_stock_disposal_status(stock_code)
+    radar_alerts = []
+    
+    if disp_status.get('in_disposal'):
+        d_info = disp_status['disposal_info']
+        radar_alerts.append(
+            f"<div style='background:rgba(231,76,60,0.15); border:1px solid #E74C3C; border-left:5px solid #E74C3C; border-radius:6px; padding:10px 14px; margin-bottom:8px;'>"
+            f"<strong style='color:#FF6B6B; font-size:16px;'>🚨【處置股分盤交易中】每 {d_info.get('interval')} 撮合一次</strong><br>"
+            f"<span style='color:#C9D1D9; font-size:14px;'>處置期間：{d_info.get('start_date')} ～ {d_info.get('end_date')} ｜ <strong>預計出關日：{d_info.get('exit_date')}（剩餘 {d_info.get('remaining_days')}）</strong></span><br>"
+            f"<span style='color:#8B949E; font-size:12px;'>處置原因：{d_info.get('reason')}</span>"
+            f"</div>"
+        )
+    elif disp_status.get('near_disposal'):
+        n_info = disp_status['near_disposal_info']
+        radar_alerts.append(
+            f"<div style='background:rgba(241,196,15,0.15); border:1px solid #F1C40F; border-left:5px solid #F1C40F; border-radius:6px; padding:10px 14px; margin-bottom:8px;'>"
+            f"<strong style='color:#F1C40F; font-size:16px;'>⚠️【處置高危警戒】{n_info.get('level')}</strong><br>"
+            f"<span style='color:#F0F6FC; font-size:14px;'>🎯 <strong>觸發條件估算：</strong>{n_info.get('trigger_cond')} ｜ <strong>最快處置日：{n_info.get('soonest')}</strong></span><br>"
+            f"<span style='color:#8B949E; font-size:12px;'>進度：3①({n_info.get('c_3_1','-')}) | 5({n_info.get('c_5','-')}) | 6({n_info.get('c_6','-')})</span>"
+            f"</div>"
+        )
+        
+    if disp_status.get('has_short_squeeze'):
+        sq_info = disp_status['squeeze_info']
+        radar_alerts.append(
+            f"<div style='background:rgba(224,86,253,0.15); border:1px solid #E056FD; border-left:5px solid #E056FD; border-radius:6px; padding:10px 14px; margin-bottom:8px;'>"
+            f"<strong style='color:#E056FD; font-size:16px;'>⚡【當沖券差軋空警報】{sq_info.get('squeeze_rank')}</strong><br>"
+            f"<span style='color:#F0F6FC; font-size:14px;'>今日當沖借券：<strong>{sq_info.get('total_lots')} 張</strong> ｜ 加權均費率：<strong>{sq_info.get('avg_rate')}%</strong> (最高 {sq_info.get('max_rate')}%)</span><br>"
+            f"<span style='color:#8B949E; font-size:12px;'>💡 當沖空單遭咬住無法回補，明日早盤 9:00 券商具強制市價回補買盤！</span>"
+            f"</div>"
+        )
+        
+    if disp_status.get('has_self_reported_eps'):
+        a_info = disp_status['att_info']
+        score = a_info.get('ai_score', 0)
+        score_color = '#2ECC71' if score > 0 else '#FF6B6B' if score < 0 else '#58A6FF'
+        radar_alerts.append(
+            f"<div style='background:rgba(52,152,219,0.15); border:1px solid #3498DB; border-left:5px solid #3498DB; border-radius:6px; padding:10px 14px; margin-bottom:8px;'>"
+            f"<strong style='color:#58A6FF; font-size:16px;'>📑【注意股最新自結損益】自結期間：{a_info.get('period')}</strong> ｜ <span style='color:{score_color}; font-weight:bold;'>AI評分: {score:+}</span><br>"
+            f"<span style='color:#F0F6FC; font-size:14px;'>自結 EPS：<strong>{a_info.get('eps')} 元</strong> ｜ 上季月均：{a_info.get('prev_quarter_avg')} 元</span><br>"
+            f"<span style='color:#FFA500; font-size:12px;'>💡 AI評語：{a_info.get('ai_reason')}</span>"
+            f"</div>"
+        )
+        
+    if radar_alerts:
+        st.markdown("".join(radar_alerts), unsafe_allow_html=True)
+        st.markdown(
+            f"<div style='margin-bottom:8px; text-align:right;'>"
+            f"<a href='/處置與注意股雷達' target='_self' style='color:#00D4AA; font-size:13px; text-decoration:none; font-weight:600;'>"
+            f"🚨 查看全市場處置、券差與自結雷達總表 ➔</a>"
+            f"</div>",
+            unsafe_allow_html=True
+        )
 
     st.divider()
 
